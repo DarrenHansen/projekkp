@@ -1,14 +1,14 @@
 import 'dart:io';
 
 import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/invoice.dart';
 import '../models/item.dart';
+import '../models/business_profile.dart';
+import '../database/db_helper.dart';
 import 'pdf_helper.dart';
 import 'helpers.dart';
-
-import 'package:url_launcher/url_launcher.dart';
 
 /// Share Helper - Bagikan invoice via WhatsApp, Email, atau file
 class ShareHelper {
@@ -18,9 +18,13 @@ class ShareHelper {
     required List<Item> items,
   }) async {
     try {
+      final profileData = await DBHelper.instance.getBusinessProfile();
+      final profile = profileData != null ? BusinessProfile.fromMap(profileData) : null;
+
       final filePath = await PdfHelper.generateAndSaveInvoice(
         invoice: invoice,
         items: items,
+        businessProfile: profile,
       );
 
       await Share.shareXFiles(
@@ -44,11 +48,7 @@ class ShareHelper {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
-      // Fallback: share biasa
-      await Share.share(
-        text,
-        subject: 'Invoice ${invoice.invoiceNumber}',
-      );
+      await Share.share(text, subject: 'Invoice ${invoice.invoiceNumber}');
     }
   }
 
@@ -58,17 +58,20 @@ class ShareHelper {
     required List<Item> items,
   }) async {
     try {
+      final profileData = await DBHelper.instance.getBusinessProfile();
+      final profile = profileData != null ? BusinessProfile.fromMap(profileData) : null;
+
       final filePath = await PdfHelper.generateAndSaveInvoice(
         invoice: invoice,
         items: items,
+        businessProfile: profile,
       );
 
       final emailUri = Uri(
         scheme: 'mailto',
         path: invoice.customerEmail.isNotEmpty ? invoice.customerEmail : '',
         queryParameters: {
-          'subject':
-              'Invoice ${invoice.invoiceNumber} - ${invoice.customerName}',
+          'subject': 'Invoice ${invoice.invoiceNumber} - ${invoice.customerName}',
           'body': _buildShareText(invoice),
         },
       );
@@ -76,7 +79,6 @@ class ShareHelper {
       if (await canLaunchUrl(emailUri)) {
         await launchUrl(emailUri);
       } else {
-        // Fallback: share PDF file
         await Share.shareXFiles(
           [XFile(filePath)],
           subject: 'Invoice ${invoice.invoiceNumber} - ${invoice.customerName}',
@@ -87,7 +89,6 @@ class ShareHelper {
     }
   }
 
-  /// Build teks ringkasan invoice untuk share
   static String _buildShareText(Invoice invoice) {
     final buffer = StringBuffer();
     buffer.writeln('--- INVOICE ---');
@@ -101,11 +102,9 @@ class ShareHelper {
       buffer.writeln('Catatan: ${invoice.notes}');
     }
     buffer.writeln('---');
-    buffer.writeln('Dibuat dengan Invoice App');
     return buffer.toString();
   }
 
-  /// Build teks WhatsApp
   static String _buildWhatsAppText(Invoice invoice, List<Item> items) {
     final buffer = StringBuffer();
     buffer.writeln('*INVOICE*');
@@ -118,19 +117,15 @@ class ShareHelper {
 
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
-      buffer.writeln(
-        '${i + 1}. ${item.productName}',
-      );
-      buffer.writeln(
-        '   ${item.qty} x ${Helpers.formatCurrency(item.price)} = ${Helpers.formatCurrency(item.total)}',
-      );
+      buffer.writeln('${i + 1}. ${item.productName}');
+      buffer.writeln('   ${item.qty} x ${Helpers.formatCurrency(item.price)} = ${Helpers.formatCurrency(item.total)}');
     }
 
     buffer.writeln('');
     buffer.writeln('*Total: ${Helpers.formatCurrency(invoice.total)}*');
     buffer.writeln('Status: ${invoice.status.label}');
     buffer.writeln('');
-    buffer.writeln('Terima kasih! 🙏');
+    buffer.writeln('Terima kasih!');
     return buffer.toString();
   }
 }

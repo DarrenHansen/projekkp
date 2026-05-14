@@ -4,16 +4,11 @@ import '../utils/helpers.dart';
 import 'status_badge.dart';
 
 /// Invoice Card Widget
-/// Card modern untuk menampilkan invoice di list view
 class InvoiceCard extends StatelessWidget {
   final Invoice invoice;
   final VoidCallback onTap;
 
-  const InvoiceCard({
-    super.key,
-    required this.invoice,
-    required this.onTap,
-  });
+  const InvoiceCard({super.key, required this.invoice, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -33,29 +28,21 @@ class InvoiceCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Ikon
             _buildIcon(context, isDark),
             const SizedBox(width: 14),
-
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Nomor Invoice
                   Text(
                     invoice.invoiceNumber,
                     style: TextStyle(
                       fontSize: 12,
-                      color: isDark
-                          ? const Color(0xFF8888AA)
-                          : const Color(0xFF9999AA),
+                      color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 4),
-
-                  // Nama Customer
                   Text(
                     invoice.customerName,
                     style: TextStyle(
@@ -67,34 +54,19 @@ class InvoiceCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-
-                  // Tanggal
                   Row(
                     children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 12,
-                        color: isDark
-                            ? const Color(0xFF6666AA)
-                            : const Color(0xFFBBBBCC),
-                      ),
+                      Icon(Icons.calendar_today_outlined, size: 12, color: isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC)),
                       const SizedBox(width: 4),
                       Text(
                         Helpers.formatDate(invoice.date),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? const Color(0xFF6666AA)
-                              : const Color(0xFFBBBBCC),
-                        ),
+                        style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC)),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-
-            // Status & Total
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -138,15 +110,8 @@ class InvoiceCard extends StatelessWidget {
     return Container(
       width: 46,
       height: 46,
-      decoration: BoxDecoration(
-        color: iconBg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(
-        Icons.receipt_long_outlined,
-        color: iconColor,
-        size: 22,
-      ),
+      decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(12)),
+      child: Icon(Icons.receipt_long_outlined, color: iconColor, size: 22),
     );
   }
 }

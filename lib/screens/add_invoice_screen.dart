@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../models/invoice.dart';
 import '../models/item.dart';
+import '../models/customer.dart';
+import '../models/product.dart';
 import '../providers/invoice_provider.dart';
+import '../providers/customer_provider.dart';
+import '../providers/product_provider.dart';
 import '../database/db_helper.dart';
 import '../utils/helpers.dart';
+import '../utils/app_localizations.dart';
+import '../utils/notification_helper.dart';
 
 /// Add / Edit Invoice Screen
 class AddInvoiceScreen extends StatefulWidget {
@@ -20,6 +25,7 @@ class AddInvoiceScreen extends StatefulWidget {
 class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _customerController = TextEditingController();
+  final _addressController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _taxController = TextEditingController(text: '0');
@@ -41,6 +47,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       _isEditing = true;
       final invoice = widget.editInvoice!;
       _customerController.text = invoice.customerName;
+      _addressController.text = invoice.customerAddress;
       _emailController.text = invoice.customerEmail;
       _phoneController.text = invoice.customerPhone;
       _taxController.text = invoice.tax.toStringAsFixed(0);
@@ -50,8 +57,6 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       _selectedDueDate = DateTime.tryParse(invoice.dueDate) ??
           DateTime.now().add(const Duration(days: 30));
       _selectedStatus = invoice.status;
-
-      // Load items untuk edit
       _loadItemsForEdit(invoice.id!);
     }
   }
@@ -66,6 +71,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   @override
   void dispose() {
     _customerController.dispose();
+    _addressController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _taxController.dispose();
@@ -74,28 +80,19 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
     super.dispose();
   }
 
-  double get _subtotal {
-    return _items.fold(0, (sum, item) => sum + item.total);
-  }
-
-  double get _taxAmount {
-    final tax = double.tryParse(_taxController.text) ?? 0;
-    return _subtotal * (tax / 100);
-  }
-
-  double get _grandTotal {
-    final discount = double.tryParse(_discountController.text) ?? 0;
-    return _subtotal + _taxAmount - discount;
-  }
+  double get _subtotal => _items.fold(0, (sum, item) => sum + item.total);
+  double get _taxAmount =>
+      _subtotal * ((double.tryParse(_taxController.text) ?? 0) / 100);
+  double get _grandTotal =>
+      _subtotal + _taxAmount - (double.tryParse(_discountController.text) ?? 0);
 
   Future<void> _selectDate(BuildContext context, bool isDueDate) async {
     final initial = isDueDate ? _selectedDueDate : _selectedDate;
     final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
+        context: context,
+        initialDate: initial,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2100));
     if (picked != null) {
       setState(() {
         if (isDueDate) {
@@ -107,34 +104,287 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
     }
   }
 
+  /// Show customer selection dialog
+  void _showCustomerSelection() {
+    final loc = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final customerProvider = context.read<CustomerProvider>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(loc.get('select_customer'),
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700)),
+                      IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            // Just keep the current empty fields for manual input
+                          },
+                          icon: const Icon(Icons.person_add, size: 18),
+                          label: Text(loc.get('create_new_customer')),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isDark
+                                ? const Color(0xFFE94560)
+                                : const Color(0xFF1A1A2E),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: customerProvider.customers.isEmpty
+                      ? Center(
+                          child: Text(loc.get('no_clients'),
+                              style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFF6666AA)
+                                      : const Color(0xFF9999AA))))
+                      : ListView.builder(
+                          controller: scrollController,
+                          itemCount: customerProvider.customers.length,
+                          itemBuilder: (_, index) {
+                            final customer = customerProvider.customers[index];
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: (isDark
+                                        ? const Color(0xFFE94560)
+                                        : const Color(0xFF1A1A2E))
+                                    .withOpacity(0.1),
+                                child: Text(customer.name[0].toUpperCase(),
+                                    style: TextStyle(
+                                        color: isDark
+                                            ? const Color(0xFFE94560)
+                                            : const Color(0xFF1A1A2E),
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                              title: Text(customer.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
+                              subtitle: Text(customer.phone.isNotEmpty
+                                  ? customer.phone
+                                  : customer.email),
+                              onTap: () {
+                                setState(() {
+                                  _customerController.text = customer.name;
+                                  _addressController.text = customer.address;
+                                  _emailController.text = customer.email;
+                                  _phoneController.text = customer.phone;
+                                });
+                                Navigator.pop(ctx);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Show add item dialog with option to select from saved products
   void _showAddItemDialog() {
+    final loc = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final productProvider = context.read<ProductProvider>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.3,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (_, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(loc.get('add_item'),
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w700)),
+                      IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _showCreateItemDialog();
+                          },
+                          icon: const Icon(Icons.add, size: 18),
+                          label: Text(loc.get('create_new_item')),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF2A2A4A)
+                                    : const Color(0xFFE0E0F0)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _showSelectProductDialog();
+                          },
+                          icon:
+                              const Icon(Icons.inventory_2_outlined, size: 18),
+                          label: Text(loc.get('select_from_products')),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isDark
+                                ? const Color(0xFFE94560)
+                                : const Color(0xFF1A1A2E),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Quick add from products list
+                Expanded(
+                  child: productProvider.products.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.inventory_2_outlined,
+                                  size: 40,
+                                  color: isDark
+                                      ? const Color(0xFF6666AA)
+                                      : const Color(0xFFCCCCDD)),
+                              const SizedBox(height: 8),
+                              Text(loc.get('no_products'),
+                                  style: TextStyle(
+                                      color: isDark
+                                          ? const Color(0xFF6666AA)
+                                          : const Color(0xFF9999AA))),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: productProvider.products.length,
+                          itemBuilder: (_, index) {
+                            final product = productProvider.products[index];
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF1A1A2E)
+                                    : const Color(0xFFF5F5FA),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListTile(
+                                title: Text(product.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
+                                subtitle:
+                                    Text(Helpers.formatCurrency(product.price)),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.add_circle,
+                                      color: Color(0xFF1A1A2E)),
+                                  onPressed: () {
+                                    setState(() {
+                                      _items.add(Item(
+                                        invoiceId: 0,
+                                        productName: product.name,
+                                        price: product.price,
+                                        qty: 1,
+                                      ));
+                                    });
+                                    Navigator.pop(ctx);
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCreateItemDialog() {
     final nameController = TextEditingController();
     final priceController = TextEditingController();
     final qtyController = TextEditingController(text: '1');
+    final loc = AppLocalizations.of(context);
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text(
-              'Tambah Item',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(loc.get('create_new_item'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
                   controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nama Produk',
-                    prefixIcon: Icon(Icons.inventory_2_outlined),
-                  ),
+                  decoration: InputDecoration(
+                      labelText: loc.get('product_name'),
+                      prefixIcon: const Icon(Icons.inventory_2_outlined)),
                   validator: (value) =>
-                      value?.isEmpty ?? true ? 'Wajib diisi' : null,
+                      value?.isEmpty ?? true ? loc.get('required_field') : null,
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -144,12 +394,12 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                         controller: priceController,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Harga',
-                          prefixIcon: Icon(Icons.attach_money),
-                        ),
-                        validator: (value) =>
-                            value?.isEmpty ?? true ? 'Wajib diisi' : null,
+                        decoration: InputDecoration(
+                            labelText: loc.get('price'),
+                            prefixIcon: const Icon(Icons.attach_money)),
+                        validator: (value) => value?.isEmpty ?? true
+                            ? loc.get('required_field')
+                            : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -158,12 +408,12 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                       child: TextFormField(
                         controller: qtyController,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Qty',
-                          prefixIcon: Icon(Icons.numbers),
-                        ),
-                        validator: (value) =>
-                            value?.isEmpty ?? true ? 'Wajib diisi' : null,
+                        decoration: InputDecoration(
+                            labelText: loc.get('qty'),
+                            prefixIcon: const Icon(Icons.numbers)),
+                        validator: (value) => value?.isEmpty ?? true
+                            ? loc.get('required_field')
+                            : null,
                       ),
                     ),
                   ],
@@ -172,9 +422,8 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Batal'),
-              ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(loc.get('cancel'))),
               ElevatedButton(
                 onPressed: () {
                   if (nameController.text.isNotEmpty &&
@@ -191,7 +440,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                     Navigator.pop(ctx);
                   }
                 },
-                child: const Text('Tambah'),
+                child: Text(loc.get('add')),
               ),
             ],
           );
@@ -200,12 +449,64 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
     );
   }
 
+  void _showSelectProductDialog() {
+    final loc = AppLocalizations.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final productProvider = context.read<ProductProvider>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(loc.get('select_product'),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: productProvider.products.isEmpty
+                ? Center(child: Text(loc.get('no_products')))
+                : ListView.builder(
+                    itemCount: productProvider.products.length,
+                    itemBuilder: (_, index) {
+                      final product = productProvider.products[index];
+                      return ListTile(
+                        title: Text(product.name,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(Helpers.formatCurrency(product.price)),
+                        onTap: () {
+                          setState(() {
+                            _items.add(Item(
+                              invoiceId: 0,
+                              productName: product.name,
+                              price: product.price,
+                              qty: 1,
+                            ));
+                          });
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(loc.get('cancel'))),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _saveInvoice() async {
+    final loc = AppLocalizations.of(context);
     if (_formKey.currentState?.validate() ?? false) {
       if (_items.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tambahkan minimal 1 item')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(loc.get('add_min_item'))));
         return;
       }
 
@@ -216,6 +517,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
           id: widget.editInvoice?.id,
           invoiceNumber: widget.editInvoice?.invoiceNumber ?? '',
           customerName: _customerController.text.trim(),
+          customerAddress: _addressController.text.trim(),
           customerEmail: _emailController.text.trim(),
           customerPhone: _phoneController.text.trim(),
           date: Helpers.dateToDb(_selectedDate),
@@ -235,22 +537,30 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
         } else {
           final result = await provider.addInvoice(invoice);
           success = result != null;
+
+          // Schedule notifications for new invoice
+          if (success && result != null) {
+            await NotificationHelper.scheduleInvoiceReminders(
+              invoiceId: result.id ?? 0,
+              invoiceNumber: result.invoiceNumber,
+              customerName: result.customerName,
+              dueDate: _selectedDueDate,
+            );
+          }
         }
 
         if (mounted) {
           if (success) {
             Navigator.pop(context, true);
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Gagal menyimpan invoice')),
-            );
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(loc.get('failed_save'))));
           }
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       } finally {
         if (mounted) setState(() => _isSaving = false);
@@ -265,17 +575,15 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _isEditing ? 'Edit Invoice' : 'Buat Invoice',
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: Text(loc.get(_isEditing ? 'edit_invoice' : 'create_invoice'),
+            style: const TextStyle(fontWeight: FontWeight.w700)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => Navigator.pop(context)),
       ),
       body: Form(
         key: _formKey,
@@ -284,18 +592,47 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Section: Info Customer
-              _buildSectionHeader('Info Customer', isDark),
+              // Customer Info Section
+              _buildSectionHeader(loc.get('customer_info'), isDark),
+              const SizedBox(height: 12),
+
+              // Customer selection button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _showCustomerSelection,
+                  icon: const Icon(Icons.person_search_outlined, size: 18),
+                  label: Text(loc.get('select_saved')),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    side: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF2A2A4A)
+                            : const Color(0xFFE0E0F0)),
+                  ),
+                ),
+              ),
               const SizedBox(height: 12),
 
               TextFormField(
                 controller: _customerController,
-                decoration: const InputDecoration(
-                  labelText: 'Nama Customer *',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Nama wajib diisi' : null,
+                decoration: InputDecoration(
+                    labelText: loc.get('customer_name'),
+                    prefixIcon: const Icon(Icons.person_outline)),
+                validator: (value) => value?.isEmpty ?? true
+                    ? loc.get('customer_name_required')
+                    : null,
+              ),
+              const SizedBox(height: 10),
+
+              TextFormField(
+                controller: _addressController,
+                decoration: InputDecoration(
+                    labelText: loc.get('customer_address'),
+                    prefixIcon: const Icon(Icons.location_on_outlined)),
+                // Optional - no validator
               ),
               const SizedBox(height: 10),
 
@@ -305,10 +642,10 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                     child: TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
+                      decoration: InputDecoration(
+                          labelText: loc.get('email'),
+                          prefixIcon: const Icon(Icons.email_outlined)),
+                      // Optional - no validator
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -316,38 +653,36 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                     child: TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Telepon',
-                        prefixIcon: Icon(Icons.phone_outlined),
-                      ),
+                      decoration: InputDecoration(
+                          labelText: loc.get('phone'),
+                          prefixIcon: const Icon(Icons.phone_outlined)),
+                      // Optional - no validator
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              // Section: Tanggal & Status
-              _buildSectionHeader('Tanggal & Status', isDark),
+              // Date & Status Section
+              _buildSectionHeader(loc.get('date_status'), isDark),
               const SizedBox(height: 12),
 
               Row(
                 children: [
                   Expanded(
                     child: _buildDatePicker(
-                      label: 'Tanggal',
-                      date: _selectedDate,
-                      isDark: isDark,
-                      onTap: () => _selectDate(context, false),
-                    ),
+                        label: loc.get('date'),
+                        date: _selectedDate,
+                        isDark: isDark,
+                        onTap: () => _selectDate(context, false)),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _buildDatePicker(
-                      label: 'Jatuh Tempo',
-                      date: _selectedDueDate,
-                      isDark: isDark,
-                      onTap: () => _selectDate(context, true),
-                    ),
+                        label: loc.get('due_date'),
+                        date: _selectedDueDate,
+                        isDark: isDark,
+                        onTap: () => _selectDate(context, true)),
                   ),
                 ],
               ),
@@ -355,30 +690,24 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
 
               if (_isEditing)
                 DropdownButtonFormField<InvoiceStatus>(
-                  initialValue: _selectedStatus,
-                  decoration: const InputDecoration(
-                    labelText: 'Status',
-                    prefixIcon: Icon(Icons.label_outline),
-                  ),
+                  value: _selectedStatus,
+                  decoration: InputDecoration(
+                      labelText: loc.get('status'),
+                      prefixIcon: const Icon(Icons.label_outline)),
                   items: InvoiceStatus.values.map((status) {
                     return DropdownMenuItem(
-                      value: status,
-                      child: Text(status.label),
-                    );
+                        value: status, child: Text(status.label));
                   }).toList(),
                   onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedStatus = value);
-                    }
+                    if (value != null) setState(() => _selectedStatus = value);
                   },
                 ),
               const SizedBox(height: 20),
 
-              // Section: Items
-              _buildSectionHeader('Item Produk', isDark),
+              // Items Section
+              _buildSectionHeader(loc.get('product_items'), isDark),
               const SizedBox(height: 12),
 
-              // List items
               if (_items.isEmpty)
                 Container(
                   width: double.infinity,
@@ -391,22 +720,17 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                   ),
                   child: Column(
                     children: [
-                      Icon(
-                        Icons.inventory_2_outlined,
-                        size: 40,
-                        color: isDark
-                            ? const Color(0xFF6666AA)
-                            : const Color(0xFFCCCCDD),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Belum ada item',
-                        style: TextStyle(
+                      Icon(Icons.inventory_2_outlined,
+                          size: 40,
                           color: isDark
                               ? const Color(0xFF6666AA)
-                              : const Color(0xFFCCCCDD),
-                        ),
-                      ),
+                              : const Color(0xFFCCCCDD)),
+                      const SizedBox(height: 10),
+                      Text(loc.get('no_items'),
+                          style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF6666AA)
+                                  : const Color(0xFFCCCCDD))),
                     ],
                   ),
                 )
@@ -418,30 +742,27 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
 
               const SizedBox(height: 12),
 
-              // Tombol tambah item
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: OutlinedButton.icon(
                   onPressed: _showAddItemDialog,
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Tambah Item'),
+                  label: Text(loc.get('add_item')),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                     side: BorderSide(
-                      color: isDark
-                          ? const Color(0xFF2A2A4A)
-                          : const Color(0xFFE0E0F0),
-                    ),
+                        color: isDark
+                            ? const Color(0xFF2A2A4A)
+                            : const Color(0xFFE0E0F0)),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Section: Pajak & Diskon
-              _buildSectionHeader('Pajak & Diskon', isDark),
+              // Tax & Discount Section
+              _buildSectionHeader(loc.get('tax_discount'), isDark),
               const SizedBox(height: 12),
 
               Row(
@@ -450,11 +771,10 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                     child: TextFormField(
                       controller: _taxController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Pajak (%)',
-                        prefixIcon: Icon(Icons.percent),
-                        suffixText: '%',
-                      ),
+                      decoration: InputDecoration(
+                          labelText: loc.get('tax_percent'),
+                          prefixIcon: const Icon(Icons.percent),
+                          suffixText: '%'),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -463,33 +783,28 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                       controller: _discountController,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Diskon',
-                        prefixIcon: Icon(Icons.discount),
-                      ),
+                      decoration: InputDecoration(
+                          labelText: loc.get('discount'),
+                          prefixIcon: const Icon(Icons.discount)),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
 
-              // Notes
               TextFormField(
                 controller: _notesController,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Catatan',
-                  prefixIcon: Icon(Icons.notes),
-                  alignLabelWithHint: true,
-                ),
+                decoration: InputDecoration(
+                    labelText: loc.get('notes'),
+                    prefixIcon: const Icon(Icons.notes),
+                    alignLabelWithHint: true),
               ),
               const SizedBox(height: 24),
 
-              // Summary
-              _buildSummaryCard(isDark),
+              _buildSummaryCard(isDark, loc),
               const SizedBox(height: 24),
 
-              // Tombol Simpan
               SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -500,20 +815,15 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
+                              strokeWidth: 2, color: Colors.white))
                       : Text(
-                          _isEditing ? 'Update Invoice' : 'Simpan Invoice',
+                          loc.get(
+                              _isEditing ? 'update_invoice' : 'save_invoice'),
                           style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                              fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                 ),
               ),
-
               const SizedBox(height: 32),
             ],
           ),
@@ -526,34 +836,30 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
     return Text(
       title,
       style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E),
-        letterSpacing: 0.3,
-      ),
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E),
+          letterSpacing: 0.3),
     );
   }
 
-  Widget _buildDatePicker({
-    required String label,
-    required DateTime date,
-    required bool isDark,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildDatePicker(
+      {required String label,
+      required DateTime date,
+      required bool isDark,
+      required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: const Icon(Icons.calendar_today_outlined, size: 20),
-        ),
+            labelText: label,
+            prefixIcon: const Icon(Icons.calendar_today_outlined, size: 20)),
         child: Text(
           Helpers.formatDate(Helpers.dateToDb(date)),
           style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF1A1A2E),
-            fontWeight: FontWeight.w500,
-          ),
+              color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+              fontWeight: FontWeight.w500),
         ),
       ),
     );
@@ -561,15 +867,13 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
 
   Widget _buildItemTile(Item item, int index, bool isDark) {
     return Dismissible(
-      key: ValueKey(item.hashCode),
+      key: ValueKey(item.hashCode + index),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(12),
-        ),
+            color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
         child: Icon(Icons.delete, color: Colors.red.shade400),
       ),
       onDismissed: (_) => _removeItem(index),
@@ -586,34 +890,28 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.productName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      color: isDark ? Colors.white : const Color(0xFF1A1A2E),
-                    ),
-                  ),
+                  Text(item.productName,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color:
+                              isDark ? Colors.white : const Color(0xFF1A1A2E))),
                   const SizedBox(height: 2),
-                  Text(
-                    '${item.qty} x ${Helpers.formatCurrency(item.price)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark
-                          ? const Color(0xFF8888AA)
-                          : const Color(0xFF9999AA),
-                    ),
-                  ),
+                  Text('${item.qty} x ${Helpers.formatCurrency(item.price)}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF8888AA)
+                              : const Color(0xFF9999AA))),
                 ],
               ),
             ),
             Text(
               Helpers.formatCurrency(item.total),
               style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                color: isDark ? Colors.white : const Color(0xFF1A1A2E),
-              ),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: isDark ? Colors.white : const Color(0xFF1A1A2E)),
             ),
           ],
         ),
@@ -621,7 +919,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
     );
   }
 
-  Widget _buildSummaryCard(bool isDark) {
+  Widget _buildSummaryCard(bool isDark, AppLocalizations loc) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -631,65 +929,45 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       child: Column(
         children: [
           _buildSummaryRow(
-              'Subtotal', Helpers.formatCurrency(_subtotal), isDark),
-          if (double.tryParse(_taxController.text)?.toInt() != null &&
-              (double.tryParse(_taxController.text) ?? 0) > 0)
+              loc.get('subtotal'), Helpers.formatCurrency(_subtotal), isDark),
+          if ((double.tryParse(_taxController.text) ?? 0) > 0)
+            _buildSummaryRow(loc.get('tax_percent'),
+                Helpers.formatCurrency(_taxAmount), isDark),
+          if ((double.tryParse(_discountController.text) ?? 0) > 0)
             _buildSummaryRow(
-              'Pajak',
-              Helpers.formatCurrency(_taxAmount),
-              isDark,
-            ),
-          if (double.tryParse(_discountController.text)?.toInt() != null &&
-              (double.tryParse(_discountController.text) ?? 0) > 0)
-            _buildSummaryRow(
-              'Diskon',
-              '-${Helpers.formatCurrency(double.tryParse(_discountController.text) ?? 0)}',
-              isDark,
-              textColor: Colors.red,
-            ),
+                loc.get('discount'),
+                '-${Helpers.formatCurrency(double.tryParse(_discountController.text) ?? 0)}',
+                isDark,
+                textColor: Colors.red),
           const Divider(height: 24),
-          _buildSummaryRow(
-            'Grand Total',
-            Helpers.formatCurrency(_grandTotal),
-            isDark,
-            isBold: true,
-            fontSize: 18,
-          ),
+          _buildSummaryRow(loc.get('grand_total'),
+              Helpers.formatCurrency(_grandTotal), isDark,
+              isBold: true, fontSize: 18),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryRow(
-    String label,
-    String value,
-    bool isDark, {
-    bool isBold = false,
-    double fontSize = 14,
-    Color? textColor,
-  }) {
+  Widget _buildSummaryRow(String label, String value, bool isDark,
+      {bool isBold = false, double fontSize = 14, Color? textColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: fontSize,
-              color: isDark ? const Color(0xFF8888AA) : const Color(0xFF888899),
-              fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
-              color: textColor ??
-                  (isDark ? Colors.white : const Color(0xFF1A1A2E)),
-            ),
-          ),
+          Text(label,
+              style: TextStyle(
+                  fontSize: fontSize,
+                  color: isDark
+                      ? const Color(0xFF8888AA)
+                      : const Color(0xFF888899),
+                  fontWeight: isBold ? FontWeight.w700 : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+                  color: textColor ??
+                      (isDark ? Colors.white : const Color(0xFF1A1A2E)))),
         ],
       ),
     );

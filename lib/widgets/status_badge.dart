@@ -2,20 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/invoice.dart';
 
 /// Status Badge Widget
-/// Menampilkan badge status invoice dengan warna yang sesuai
 class StatusBadge extends StatelessWidget {
   final InvoiceStatus status;
   final double? fontSize;
   final double? paddingH;
   final double? paddingV;
 
-  const StatusBadge({
-    super.key,
-    required this.status,
-    this.fontSize,
-    this.paddingH,
-    this.paddingV,
-  });
+  const StatusBadge({super.key, required this.status, this.fontSize, this.paddingH, this.paddingV});
 
   @override
   Widget build(BuildContext context) {
@@ -23,22 +16,11 @@ class StatusBadge extends StatelessWidget {
     final colors = _getColors(isDark);
 
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: paddingH ?? 10,
-        vertical: paddingV ?? 4,
-      ),
-      decoration: BoxDecoration(
-        color: colors['bg'],
-        borderRadius: BorderRadius.circular(20),
-      ),
+      padding: EdgeInsets.symmetric(horizontal: paddingH ?? 10, vertical: paddingV ?? 4),
+      decoration: BoxDecoration(color: colors['bg'], borderRadius: BorderRadius.circular(20)),
       child: Text(
         status.label,
-        style: TextStyle(
-          color: colors['text'],
-          fontSize: fontSize ?? 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.3,
-        ),
+        style: TextStyle(color: colors['text'], fontSize: fontSize ?? 11, fontWeight: FontWeight.w600, letterSpacing: 0.3),
       ),
     );
   }

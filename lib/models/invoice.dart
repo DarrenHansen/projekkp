@@ -50,6 +50,7 @@ class Invoice {
   int? id;
   String invoiceNumber;
   String customerName;
+  String customerAddress;
   String customerEmail;
   String customerPhone;
   String date;
@@ -65,6 +66,7 @@ class Invoice {
     this.id,
     required this.invoiceNumber,
     required this.customerName,
+    this.customerAddress = '',
     this.customerEmail = '',
     this.customerPhone = '',
     required this.date,
@@ -96,7 +98,10 @@ class Invoice {
   bool get isOverdue {
     final due = DateTime.tryParse(dueDate);
     if (due == null) return false;
-    return DateTime.now().isAfter(due) && status != InvoiceStatus.paid;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(due.year, due.month, due.day);
+    return today.isAfter(dueDay) && status != InvoiceStatus.paid;
   }
 
   Map<String, dynamic> toMap() {
@@ -104,6 +109,7 @@ class Invoice {
       'id': id,
       'invoice_number': invoiceNumber,
       'customer_name': customerName,
+      'customer_address': customerAddress,
       'customer_email': customerEmail,
       'customer_phone': customerPhone,
       'date': date,
@@ -121,6 +127,7 @@ class Invoice {
       id: map['id'],
       invoiceNumber: map['invoice_number'] ?? '',
       customerName: map['customer_name'] ?? '',
+      customerAddress: map['customer_address'] ?? '',
       customerEmail: map['customer_email'] ?? '',
       customerPhone: map['customer_phone'] ?? '',
       date: map['date'] ?? '',
@@ -138,6 +145,7 @@ class Invoice {
     int? id,
     String? invoiceNumber,
     String? customerName,
+    String? customerAddress,
     String? customerEmail,
     String? customerPhone,
     String? date,
@@ -153,6 +161,7 @@ class Invoice {
       id: id ?? this.id,
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       customerName: customerName ?? this.customerName,
+      customerAddress: customerAddress ?? this.customerAddress,
       customerEmail: customerEmail ?? this.customerEmail,
       customerPhone: customerPhone ?? this.customerPhone,
       date: date ?? this.date,

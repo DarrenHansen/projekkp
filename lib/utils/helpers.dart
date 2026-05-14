@@ -50,23 +50,14 @@ class Helpers {
     return _dbDateFormatter.format(date);
   }
 
-  /// Format tanggal dari ISO string
-  static String formatIsoDate(String isoDate) {
-    try {
-      final date = DateTime.parse(isoDate);
-      return _dateFormatter.format(date);
-    } catch (_) {
-      return isoDate;
-    }
-  }
-
   /// Hitung hari tersisa sebelum jatuh tempo
   static int daysUntilDue(String dueDate) {
     try {
       final due = DateTime.parse(dueDate);
       final now = DateTime.now();
-      final difference = due.difference(now).inDays;
-      return difference;
+      final today = DateTime(now.year, now.month, now.day);
+      final dueDay = DateTime(due.year, due.month, due.day);
+      return dueDay.difference(today).inDays;
     } catch (_) {
       return 0;
     }

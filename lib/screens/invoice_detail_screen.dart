@@ -1,17 +1,22 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/invoice.dart';
 import '../models/item.dart';
+import '../models/business_profile.dart';
 import '../providers/invoice_provider.dart';
+import '../providers/business_profile_provider.dart';
 import '../database/db_helper.dart';
 import '../utils/helpers.dart';
+import '../utils/app_localizations.dart';
 import '../utils/pdf_helper.dart';
 import '../utils/share_helper.dart';
 import '../widgets/status_badge.dart';
 import 'add_invoice_screen.dart';
 
-/// Invoice Detail Screen - Detail dan aksi invoice
+/// Invoice Detail Screen
 class InvoiceDetailScreen extends StatefulWidget {
   final Invoice invoice;
 
@@ -45,35 +50,21 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   }
 
   Future<void> _changeStatus(InvoiceStatus newStatus) async {
-    await context
-        .read<InvoiceProvider>()
-        .updateStatus(widget.invoice.id!, newStatus);
+    await context.read<InvoiceProvider>().updateStatus(widget.invoice.id!, newStatus);
     await _refreshData();
   }
 
   Future<void> _deleteInvoice() async {
+    final loc = AppLocalizations.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Text('Hapus Invoice'),
-        content: const Text(
-          'Yakin ingin menghapus invoice ini? Aksi ini tidak dapat dibatalkan.',
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(loc.get('delete_invoice')),
+        content: Text(loc.get('delete_confirm')),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.get('cancel'))),
+          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(ctx, true), child: Text(loc.get('delete'))),
         ],
       ),
     );
@@ -86,12 +77,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
 
   void _showShareBottomSheet() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context);
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return SafeArea(
           child: Padding(
@@ -100,82 +90,48 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Bagikan Invoice',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
+                Text(loc.get('share_invoice'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 16),
                 ListTile(
                   leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF25D366).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: const Color(0xFF25D366).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.chat, color: Color(0xFF25D366)),
                   ),
-                  title: const Text('WhatsApp'),
-                  subtitle: const Text('Kirim ringkasan via WhatsApp'),
+                  title: Text(loc.get('whatsapp')),
+                  subtitle: Text(loc.get('share_whatsapp')),
                   onTap: () {
                     Navigator.pop(ctx);
                     final invoice = widget.invoice.copyWith(items: _items);
-                    ShareHelper.shareToWhatsApp(
-                      invoice: invoice,
-                      items: _items,
-                    );
+                    ShareHelper.shareToWhatsApp(invoice: invoice, items: _items);
                   },
                 ),
                 ListTile(
                   leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEA4335).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: const Color(0xFFEA4335).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
                     child: const Icon(Icons.email, color: Color(0xFFEA4335)),
                   ),
-                  title: const Text('Email'),
-                  subtitle: const Text('Kirim PDF via email'),
+                  title: Text(loc.get('email_share')),
+                  subtitle: Text(loc.get('send_pdf_email')),
                   onTap: () {
                     Navigator.pop(ctx);
                     final invoice = widget.invoice.copyWith(items: _items);
-                    ShareHelper.shareViaEmail(
-                      invoice: invoice,
-                      items: _items,
-                    );
+                    ShareHelper.shareViaEmail(invoice: invoice, items: _items);
                   },
                 ),
                 ListTile(
                   leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: (isDark
-                              ? const Color(0xFFE94560)
-                              : const Color(0xFF1A1A2E))
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.picture_as_pdf,
-                      color: isDark
-                          ? const Color(0xFFE94560)
-                          : const Color(0xFF1A1A2E),
-                    ),
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(color: (isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E)).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                    child: Icon(Icons.picture_as_pdf, color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E)),
                   ),
-                  title: const Text('Share File PDF'),
-                  subtitle: const Text('Bagikan file PDF ke aplikasi lain'),
+                  title: Text(loc.get('share_pdf')),
+                  subtitle: Text(loc.get('share_pdf_desc')),
                   onTap: () {
                     Navigator.pop(ctx);
                     final invoice = widget.invoice.copyWith(items: _items);
-                    ShareHelper.shareInvoicePdf(
-                      invoice: invoice,
-                      items: _items,
-                    );
+                    ShareHelper.shareInvoicePdf(invoice: invoice, items: _items);
                   },
                 ),
               ],
@@ -190,72 +146,35 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     final result = await Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => AddInvoiceScreen(
-          editInvoice: widget.invoice.copyWith(items: _items),
-        ),
+        pageBuilder: (_, __, ___) => AddInvoiceScreen(editInvoice: widget.invoice.copyWith(items: _items)),
         transitionDuration: const Duration(milliseconds: 400),
         transitionsBuilder: (_, animation, __, child) {
           return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.05),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            )),
+            position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
             child: child,
           );
         },
       ),
     );
-    if (result == true) {
-      await _refreshData();
-    }
+    if (result == true) await _refreshData();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Detail Invoice',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
+        title: Text(loc.get('detail_invoice'), style: const TextStyle(fontWeight: FontWeight.w700)),
         actions: [
-          // PDF
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            tooltip: 'Export PDF',
-            onPressed: () {
-              PdfHelper.generateAndPreviewInvoice(
-                invoice: widget.invoice,
-                items: _items,
-              );
-            },
-          ),
-
-          // Share
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: 'Bagikan',
-            onPressed: _showShareBottomSheet,
-          ),
-
-          // Edit
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit',
-            onPressed: _navigateToEdit,
-          ),
-
-          // Delete
-          IconButton(
-            icon: Icon(Icons.delete_outline, color: Colors.red.shade400),
-            tooltip: 'Hapus',
-            onPressed: _deleteInvoice,
-          ),
+          IconButton(icon: const Icon(Icons.picture_as_pdf_outlined), tooltip: loc.get('export_pdf'), onPressed: () {
+            final profile = context.read<BusinessProfileProvider>().profile;
+            PdfHelper.generateAndPreviewInvoice(invoice: widget.invoice, items: _items, businessProfile: profile);
+          }),
+          IconButton(icon: const Icon(Icons.share_outlined), tooltip: loc.get('share'), onPressed: _showShareBottomSheet),
+          IconButton(icon: const Icon(Icons.edit_outlined), tooltip: loc.get('edit'), onPressed: _navigateToEdit),
+          IconButton(icon: Icon(Icons.delete_outline, color: Colors.red.shade400), tooltip: loc.get('delete'), onPressed: _deleteInvoice),
         ],
       ),
       body: _isLoading
@@ -265,28 +184,17 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Invoice number & status
-                  _buildHeaderCard(isDark),
+                  _buildHeaderCard(isDark, loc),
                   const SizedBox(height: 16),
-
-                  // Customer info
-                  _buildCustomerCard(isDark),
+                  _buildCustomerCard(isDark, loc),
                   const SizedBox(height: 16),
-
-                  // Items
-                  _buildItemsCard(isDark),
+                  _buildItemsCard(isDark, loc),
                   const SizedBox(height: 16),
-
-                  // Summary
-                  _buildSummaryCard(isDark),
+                  _buildSummaryCard(isDark, loc),
                   const SizedBox(height: 16),
-
-                  // Notes
-                  if (widget.invoice.notes.isNotEmpty) _buildNotesCard(isDark),
+                  if (widget.invoice.notes.isNotEmpty) _buildNotesCard(isDark, loc),
                   const SizedBox(height: 16),
-
-                  // Status action
-                  _buildStatusAction(isDark),
+                  _buildStatusAction(isDark, loc),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -294,24 +202,23 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-  Widget _buildHeaderCard(bool isDark) {
+  Widget _buildHeaderCard(bool isDark, AppLocalizations loc) {
     final daysLeft = Helpers.daysUntilDue(widget.invoice.dueDate);
     String? dueInfo;
     Color? dueColor;
 
     if (widget.invoice.status != InvoiceStatus.paid) {
       if (daysLeft < 0) {
-        dueInfo = 'Terlambat ${-daysLeft} hari';
+        dueInfo = '${-daysLeft} ${loc.get('late_days')}';
         dueColor = Colors.red;
       } else if (daysLeft == 0) {
-        dueInfo = 'Jatuh tempo hari ini';
+        dueInfo = loc.get('due_today');
         dueColor = Colors.orange;
       } else if (daysLeft <= 7) {
-        dueInfo = '$daysLeft hari lagi';
+        dueInfo = '$daysLeft ${loc.get('days_left')}';
         dueColor = Colors.orange;
       } else {
-        dueInfo = '$daysLeft hari lagi';
-        dueColor = null;
+        dueInfo = '$daysLeft ${loc.get('days_left')}';
       }
     }
 
@@ -328,81 +235,33 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                widget.invoice.invoiceNumber,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark
-                      ? const Color(0xFF8888AA)
-                      : const Color(0xFF9999AA),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              Text(widget.invoice.invoiceNumber, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA), fontWeight: FontWeight.w500)),
               StatusBadge(status: widget.invoice.status),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(
-                Icons.calendar_today_outlined,
-                size: 14,
-                color:
-                    isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC),
-              ),
+              Icon(Icons.calendar_today_outlined, size: 14, color: isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC)),
               const SizedBox(width: 4),
-              Text(
-                Helpers.formatDateFull(widget.invoice.date),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark
-                      ? const Color(0xFF6666AA)
-                      : const Color(0xFFBBBBCC),
-                ),
-              ),
+              Text(Helpers.formatDateFull(widget.invoice.date), style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC))),
               const SizedBox(width: 16),
-              Icon(
-                Icons.schedule_outlined,
-                size: 14,
-                color: dueColor ??
-                    (isDark
-                        ? const Color(0xFF6666AA)
-                        : const Color(0xFFBBBBCC)),
-              ),
+              Icon(Icons.schedule_outlined, size: 14, color: dueColor ?? (isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC))),
               const SizedBox(width: 4),
-              Text(
-                'JT: ${Helpers.formatDateFull(widget.invoice.dueDate)}',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: dueColor ??
-                      (isDark
-                          ? const Color(0xFF6666AA)
-                          : const Color(0xFFBBBBCC)),
-                ),
-              ),
+              Text('JT: ${Helpers.formatDateFull(widget.invoice.dueDate)}', style: TextStyle(fontSize: 13, color: dueColor ?? (isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC)))),
             ],
           ),
           if (dueInfo != null) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: (dueColor ?? Colors.orange).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(color: (dueColor ?? Colors.orange).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.warning_amber_rounded, size: 14, color: dueColor),
                   const SizedBox(width: 4),
-                  Text(
-                    dueInfo,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: dueColor,
-                    ),
-                  ),
+                  Text(dueInfo, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: dueColor)),
                 ],
               ),
             ),
@@ -412,46 +271,27 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-  Widget _buildCustomerCard(bool isDark) {
+  Widget _buildCustomerCard(bool isDark, AppLocalizations loc) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF0F0F5),
-        ),
+        border: Border.all(color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF0F0F5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Customer',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA),
-              letterSpacing: 0.5,
-            ),
-          ),
+          Text(loc.get('customer_info'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA), letterSpacing: 0.5)),
           const SizedBox(height: 10),
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: isDark
-                    ? const Color(0xFFE94560).withValues(alpha: 0.2)
-                    : const Color(0xFF1A1A2E).withValues(alpha: 0.1),
+                backgroundColor: (isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E)).withOpacity(0.1),
                 child: Text(
-                  widget.invoice.customerName.isNotEmpty
-                      ? widget.invoice.customerName[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? const Color(0xFFE94560)
-                        : const Color(0xFF1A1A2E),
-                  ),
+                  widget.invoice.customerName.isNotEmpty ? widget.invoice.customerName[0].toUpperCase() : '?',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E)),
                 ),
               ),
               const SizedBox(width: 12),
@@ -459,34 +299,13 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.invoice.customerName,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.white : const Color(0xFF1A1A2E),
-                      ),
-                    ),
+                    Text(widget.invoice.customerName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF1A1A2E))),
+                    if (widget.invoice.customerAddress.isNotEmpty)
+                      Text(widget.invoice.customerAddress, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
                     if (widget.invoice.customerEmail.isNotEmpty)
-                      Text(
-                        widget.invoice.customerEmail,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? const Color(0xFF8888AA)
-                              : const Color(0xFF9999AA),
-                        ),
-                      ),
+                      Text(widget.invoice.customerEmail, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
                     if (widget.invoice.customerPhone.isNotEmpty)
-                      Text(
-                        widget.invoice.customerPhone,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? const Color(0xFF8888AA)
-                              : const Color(0xFF9999AA),
-                        ),
-                      ),
+                      Text(widget.invoice.customerPhone, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
                   ],
                 ),
               ),
@@ -497,16 +316,14 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-  Widget _buildItemsCard(bool isDark) {
+  Widget _buildItemsCard(bool isDark, AppLocalizations loc) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF0F0F5),
-        ),
+        border: Border.all(color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFF0F0F5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,26 +331,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Item',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? const Color(0xFF8888AA)
-                      : const Color(0xFF9999AA),
-                  letterSpacing: 0.5,
-                ),
-              ),
-              Text(
-                '${_items.length} item',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? const Color(0xFF8888AA)
-                      : const Color(0xFF9999AA),
-                ),
-              ),
+              Text(loc.get('product_items'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA), letterSpacing: 0.5)),
+              Text('${_items.length} item', style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
             ],
           ),
           const SizedBox(height: 12),
@@ -546,48 +345,17 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Row(
                     children: [
-                      Text(
-                        '${index + 1}.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? const Color(0xFF8888AA)
-                              : const Color(0xFF9999AA),
-                        ),
-                      ),
+                      Text('${index + 1}.', style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
                       const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          item.productName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF1A1A2E),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '${item.qty} x ${Helpers.formatCurrency(item.price)}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDark
-                              ? const Color(0xFF8888AA)
-                              : const Color(0xFF9999AA),
-                        ),
-                      ),
+                      Expanded(child: Text(item.productName, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? Colors.white : const Color(0xFF1A1A2E)))),
+                      Text('${item.qty} x ${Helpers.formatCurrency(item.price)}', style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
                       const SizedBox(width: 12),
                       SizedBox(
                         width: 90,
                         child: Text(
                           Helpers.formatCurrency(item.total),
                           textAlign: TextAlign.right,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                isDark ? Colors.white : const Color(0xFF1A1A2E),
-                          ),
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : const Color(0xFF1A1A2E)),
                         ),
                       ),
                     ],
@@ -602,20 +370,17 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-  Widget _buildSummaryCard(bool isDark) {
+  Widget _buildSummaryCard(bool isDark, AppLocalizations loc) {
     final subtotal = _items.fold<double>(0, (sum, item) => sum + item.total);
     final tax = subtotal * (widget.invoice.tax / 100);
-    final discount = widget.invoice.discount;
-    final total = subtotal + tax - discount;
+    final total = subtotal + tax - widget.invoice.discount;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: isDark
-              ? [const Color(0xFF1A1A2E), const Color(0xFF16162A)]
-              : [const Color(0xFF1A1A2E), const Color(0xFF2D2D5E)],
+          colors: isDark ? [const Color(0xFF1A1A2E), const Color(0xFF16162A)] : [const Color(0xFF1A1A2E), const Color(0xFF2D2D5E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -624,53 +389,19 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Ringkasan Pembayaran',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withValues(alpha: 0.7),
-              letterSpacing: 0.5,
-            ),
-          ),
+          Text(loc.get('payment_summary'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.7), letterSpacing: 0.5)),
           const SizedBox(height: 14),
-          _buildSummaryRow(
-            'Subtotal',
-            Helpers.formatCurrency(subtotal),
-            Colors.white.withValues(alpha: 0.7),
-          ),
+          _buildSummaryRow(loc.get('subtotal'), Helpers.formatCurrency(subtotal), Colors.white.withOpacity(0.7)),
           if (widget.invoice.tax > 0)
-            _buildSummaryRow(
-              'Pajak (${widget.invoice.tax.toStringAsFixed(0)}%)',
-              Helpers.formatCurrency(tax),
-              Colors.white.withValues(alpha: 0.7),
-            ),
+            _buildSummaryRow('Pajak (${widget.invoice.tax.toStringAsFixed(0)}%)', Helpers.formatCurrency(tax), Colors.white.withOpacity(0.7)),
           if (widget.invoice.discount > 0)
-            _buildSummaryRow(
-              'Diskon',
-              '-${Helpers.formatCurrency(discount)}',
-              Colors.red.shade300,
-            ),
+            _buildSummaryRow(loc.get('discount'), '-${Helpers.formatCurrency(widget.invoice.discount)}', Colors.red.shade300),
           const Divider(color: Color(0xFF3A3A5A), height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Total',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                Helpers.formatCurrency(total),
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
+              Text(loc.get('grand_total'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+              Text(Helpers.formatCurrency(total), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
             ],
           ),
         ],
@@ -681,67 +412,40 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   Widget _buildSummaryRow(String label, String value, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, color: color)),
-          Text(value, style: TextStyle(fontSize: 14, color: color)),
-        ],
-      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(label, style: TextStyle(fontSize: 14, color: color)),
+        Text(value, style: TextStyle(fontSize: 14, color: color)),
+      ]),
     );
   }
 
-  Widget _buildNotesCard(bool isDark) {
+  Widget _buildNotesCard(bool isDark, AppLocalizations loc) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFFFE082),
-        ),
+        border: Border.all(color: isDark ? const Color(0xFF2A2A4A) : const Color(0xFFFFE082)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.notes,
-                size: 16,
-                color:
-                    isDark ? const Color(0xFF8888AA) : const Color(0xFFF57F17),
-              ),
+              Icon(Icons.notes, size: 16, color: isDark ? const Color(0xFF8888AA) : const Color(0xFFF57F17)),
               const SizedBox(width: 6),
-              Text(
-                'Catatan',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark
-                      ? const Color(0xFF8888AA)
-                      : const Color(0xFFF57F17),
-                  letterSpacing: 0.5,
-                ),
-              ),
+              Text(loc.get('notes'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? const Color(0xFF8888AA) : const Color(0xFFF57F17), letterSpacing: 0.5)),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            widget.invoice.notes,
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark ? const Color(0xFFBBBBCC) : const Color(0xFF5D4037),
-              height: 1.5,
-            ),
-          ),
+          Text(widget.invoice.notes, style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFBBBBCC) : const Color(0xFF5D4037), height: 1.5)),
         ],
       ),
     );
   }
 
-  Widget _buildStatusAction(bool isDark) {
+  Widget _buildStatusAction(bool isDark, AppLocalizations loc) {
     if (widget.invoice.status == InvoiceStatus.paid) {
       return SizedBox(
         width: double.infinity,
@@ -749,20 +453,10 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         child: OutlinedButton(
           onPressed: () => _changeStatus(InvoiceStatus.unpaid),
           style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            side: BorderSide(
-              color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            side: BorderSide(color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E)),
           ),
-          child: Text(
-            'Tandai Belum Bayar',
-            style: TextStyle(
-              color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          child: Text(loc.get('mark_unpaid'), style: TextStyle(color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E), fontWeight: FontWeight.w600)),
         ),
       );
     }
@@ -773,25 +467,16 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
       child: ElevatedButton(
         onPressed: () => _changeStatus(InvoiceStatus.paid),
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E),
+          backgroundColor: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E),
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.check_circle_outline, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Tandai Sudah Dibayar',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          children: [
+            const Icon(Icons.check_circle_outline, size: 20),
+            const SizedBox(width: 8),
+            Text(loc.get('mark_paid'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
