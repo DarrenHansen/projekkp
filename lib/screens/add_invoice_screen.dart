@@ -217,6 +217,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
 
   /// Show add item dialog with option to select from saved products
   void _showAddItemDialog() {
+    
     final loc = AppLocalizations.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final productProvider = context.read<ProductProvider>();
@@ -327,27 +328,26 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: ListTile(
-                                title: Text(product.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600)),
-                                subtitle:
-                                    Text(Helpers.formatCurrency(product.price)),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.add_circle,
-                                      color: Color(0xFF1A1A2E)),
-                                  onPressed: () {
-                                    setState(() {
-                                      _items.add(Item(
-                                        invoiceId: 0,
-                                        productName: product.name,
-                                        price: product.price,
-                                        qty: 1,
-                                      ));
-                                    });
-                                    Navigator.pop(ctx);
-                                  },
+                              title: Text(
+                                product.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              subtitle: Text(
+                                Helpers.formatCurrency(product.price),
+                              ),
+
+                              trailing: const Icon(
+                                Icons.add_circle,
+                                color: Color(0xFF1A1A2E),
+                              ),
+
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                _showQuantityDialog(product);
+                              },
+                            ),
                             );
                           },
                         ),
@@ -430,12 +430,11 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                       priceController.text.isNotEmpty &&
                       qtyController.text.isNotEmpty) {
                     setState(() {
-                      _items.add(Item(
-                        invoiceId: 0,
+                      _addOrUpdateItem(
                         productName: nameController.text.trim(),
                         price: double.parse(priceController.text),
                         qty: int.parse(qtyController.text),
-                      ));
+                      );
                     });
                     Navigator.pop(ctx);
                   }
@@ -450,56 +449,161 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   }
 
   void _showSelectProductDialog() {
-    final loc = AppLocalizations.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final productProvider = context.read<ProductProvider>();
+  final loc = AppLocalizations.of(context);
+  final productProvider = context.read<ProductProvider>();
 
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(loc.get('select_product'),
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: productProvider.products.isEmpty
-                ? Center(child: Text(loc.get('no_products')))
-                : ListView.builder(
-                    itemCount: productProvider.products.length,
-                    itemBuilder: (_, index) {
-                      final product = productProvider.products[index];
-                      return ListTile(
-                        title: Text(product.name,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(Helpers.formatCurrency(product.price)),
-                        onTap: () {
-                          setState(() {
-                            _items.add(Item(
-                              invoiceId: 0,
-                              productName: product.name,
-                              price: product.price,
-                              qty: 1,
-                            ));
-                          });
-                          Navigator.pop(ctx);
-                        },
-                      );
-                    },
-                  ),
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          loc.get('select_product'),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: productProvider.products.isEmpty
+              ? Center(
+                  child: Text(loc.get('no_products')),
+                )
+              : ListView.builder(
+                  itemCount: productProvider.products.length,
+                  itemBuilder: (_, index) {
+                    final product = productProvider.products[index];
+
+                    return ListTile(
+                      title: Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle:
+                          Text(Helpers.formatCurrency(product.price)),
+
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _showQuantityDialog(product);
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(loc.get('cancel')),
           ),
-          actions: [
-            TextButton(
+        ],
+      );
+    },
+  );
+}
+
+void _showQuantityDialog(Product product) {
+  int qty = 1;
+  final loc = AppLocalizations.of(context);
+
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              product.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  Helpers.formatCurrency(product.price),
+                  style: const TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        if (qty > 1) {
+                          setDialogState(() {
+                            qty--;
+                          });
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                      ),
+                    ),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        qty.toString(),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    IconButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          qty++;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.add_circle_outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text(loc.get('cancel'))),
-          ],
-        );
-      },
-    );
-  }
+                child: Text(loc.get('cancel')),
+              ),
+
+              ElevatedButton(
+                onPressed: () {
+                  _addOrUpdateItem(
+                    productName: product.name,
+                    price: product.price,
+                    qty: qty,
+                  );
+
+                  Navigator.pop(ctx);
+                },
+                child: Text(loc.get('add')),
+              ),
+                        ],
+          );
+        },
+      );
+    },
+  );
+}
 
   Future<void> _saveInvoice() async {
     final loc = AppLocalizations.of(context);
@@ -571,7 +675,154 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   void _removeItem(int index) {
     setState(() => _items.removeAt(index));
   }
+  void _addOrUpdateItem({
+  required String productName,
+  required double price,
+  required int qty,
+}) {
+  final existingIndex = _items.indexWhere(
+    (item) =>
+        item.productName.toLowerCase() ==
+            productName.toLowerCase() &&
+        item.price == price,
+  );
 
+  if (existingIndex != -1) {
+    // Produk sudah ada → tambah quantity
+    setState(() {
+      final existingItem = _items[existingIndex];
+
+      _items[existingIndex] = Item(
+        invoiceId: existingItem.invoiceId,
+        productName: existingItem.productName,
+        price: existingItem.price,
+        qty: existingItem.qty + qty,
+      );
+    });
+  } else {
+    // Produk belum ada → tambah item baru
+    setState(() {
+      _items.add(
+        Item(
+          invoiceId: 0,
+          productName: productName,
+          price: price,
+          qty: qty,
+        ),
+      );
+    });
+  }
+}
+
+  void _showEditQuantityDialog(int index) {
+  int qty = _items[index].qty;
+  final loc = AppLocalizations.of(context);
+
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+
+            title: Text(
+              _items[index].productName,
+
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  Helpers.formatCurrency(_items[index].price),
+                ),
+
+                const SizedBox(height: 20),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        if (qty > 1) {
+                          setDialogState(() {
+                            qty--;
+                          });
+                        }
+                      },
+
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                      ),
+                    ),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+
+                      child: Text(
+                        qty.toString(),
+
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+                    IconButton(
+                      onPressed: () {
+                        setDialogState(() {
+                          qty++;
+                        });
+                      },
+
+                      icon: const Icon(
+                        Icons.add_circle_outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(loc.get('cancel')),
+              ),
+
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _items[index] = Item(
+                      invoiceId: _items[index].invoiceId,
+                      productName: _items[index].productName,
+                      price: _items[index].price,
+                      qty: qty,
+                    );
+                  });
+
+                  Navigator.pop(ctx);
+                },
+
+                child: Text(loc.get('save')),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -751,11 +1002,13 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                   label: Text(loc.get('add_item')),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     side: BorderSide(
-                        color: isDark
-                            ? const Color(0xFF2A2A4A)
-                            : const Color(0xFFE0E0F0)),
+                      color: isDark
+                          ? const Color(0xFF2A2A4A)
+                          : const Color(0xFFE0E0F0),
+                    ),
                   ),
                 ),
               ),
@@ -865,59 +1118,123 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
     );
   }
 
-  Widget _buildItemTile(Item item, int index, bool isDark) {
-    return Dismissible(
-      key: ValueKey(item.hashCode + index),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-            color: Colors.red.shade50, borderRadius: BorderRadius.circular(12)),
-        child: Icon(Icons.delete, color: Colors.red.shade400),
+Widget _buildItemTile(Item item, int index, bool isDark) {
+  return Dismissible(
+    key: ValueKey(item.hashCode + index),
+    direction: DismissDirection.endToStart,
+
+    background: Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
       ),
-      onDismissed: (_) => _removeItem(index),
+      child: Icon(
+        Icons.delete,
+        color: Colors.red.shade400,
+      ),
+    ),
+
+    onDismissed: (_) => _removeItem(index),
+
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+
+      onTap: () => _showEditQuantityDialog(index),
+
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
+
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF5F5FA),
+          color: isDark
+              ? const Color(0xFF1A1A2E)
+              : const Color(0xFFF5F5FA),
+
           borderRadius: BorderRadius.circular(12),
         ),
+
         child: Row(
           children: [
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.productName,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color:
-                              isDark ? Colors.white : const Color(0xFF1A1A2E))),
+                  Text(
+                    item.productName,
+
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: isDark
+                          ? Colors.white
+                          : const Color(0xFF1A1A2E),
+                    ),
+                  ),
+
                   const SizedBox(height: 2),
-                  Text('${item.qty} x ${Helpers.formatCurrency(item.price)}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? const Color(0xFF8888AA)
-                              : const Color(0xFF9999AA))),
+
+                  Text(
+                    '${item.qty} x ${Helpers.formatCurrency(item.price)}',
+
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? const Color(0xFF8888AA)
+                          : const Color(0xFF9999AA),
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    'Tap to edit quantity',
+
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: isDark
+                          ? const Color(0xFF6666AA)
+                          : const Color(0xFFAAAAAA),
+                    ),
+                  ),
                 ],
               ),
             ),
-            Text(
-              Helpers.formatCurrency(item.total),
-              style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: isDark ? Colors.white : const Color(0xFF1A1A2E)),
+
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: isDark
+                      ? const Color(0xFF8888AA)
+                      : const Color(0xFF666688),
+                ),
+
+                const SizedBox(width: 8),
+
+                Text(
+                  Helpers.formatCurrency(item.total),
+
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: isDark
+                        ? Colors.white
+                        : const Color(0xFF1A1A2E),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSummaryCard(bool isDark, AppLocalizations loc) {
     return Container(

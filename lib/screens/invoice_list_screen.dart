@@ -136,18 +136,26 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
                             final invoice = invoices[index].copyWith(items: itemSnapshot.data ?? []);
                             return InvoiceCard(
                               invoice: invoice,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  PageRouteBuilder(
-                                    pageBuilder: (_, __, ___) => InvoiceDetailScreen(invoice: invoice),
-                                    transitionDuration: const Duration(milliseconds: 400),
-                                    transitionsBuilder: (_, animation, __, child) {
-                                      return FadeTransition(opacity: animation, child: child);
-                                    },
-                                  ),
-                                ).then((_) => provider.loadInvoices());
-                              },
+                              onTap: () async {
+                              final result = await Navigator.push(
+                                context,
+                                PageRouteBuilder(
+                                  pageBuilder: (_, __, ___) =>
+                                      InvoiceDetailScreen(invoice: invoice),
+                                  transitionDuration: const Duration(milliseconds: 400),
+                                  transitionsBuilder: (_, animation, __, child) {
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    );
+                                  },
+                                ),
+                              );
+
+                              if (result == true && mounted) {
+                                provider.loadInvoices();
+                              }
+                            },
                             );
                           },
                         );

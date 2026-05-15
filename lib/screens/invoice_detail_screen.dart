@@ -49,10 +49,15 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     await _loadItems();
   }
 
-  Future<void> _changeStatus(InvoiceStatus newStatus) async {
-    await context.read<InvoiceProvider>().updateStatus(widget.invoice.id!, newStatus);
-    await _refreshData();
+ Future<void> _changeStatus(InvoiceStatus newStatus) async {
+  await context
+      .read<InvoiceProvider>()
+      .updateStatus(widget.invoice.id!, newStatus);
+
+  if (mounted) {
+    Navigator.pop(context, true);
   }
+}
 
   Future<void> _deleteInvoice() async {
     final loc = AppLocalizations.of(context);
