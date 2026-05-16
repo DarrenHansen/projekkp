@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -48,162 +49,307 @@ class PdfHelper {
       ),
     );
 
+pw.MemoryImage? logoImage;
+
+if (businessProfile != null &&
+    businessProfile.logoPath.isNotEmpty) {
+
+  final logoFile = File(businessProfile.logoPath);
+
+  if (await logoFile.exists()) {
+
+    final imageBytes = await logoFile.readAsBytes();
+
+    logoImage = pw.MemoryImage(imageBytes);
+  }
+}
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
         build: (context) => [
           // ===== HEADER with Business Profile =====
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  if (businessProfile != null &&
-                      businessProfile.businessName.isNotEmpty) ...[
-                    pw.Text(
-                      businessProfile.businessName,
-                      style: pw.TextStyle(
-                        fontSize: 20,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue800,
-                      ),
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Text(
-                      'INVOICE',
-                      style: pw.TextStyle(
-                        fontSize: 14,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                  ] else ...[
-                    pw.Text(
-                      'INVOICE',
-                      style: pw.TextStyle(
-                        fontSize: 28,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue800,
-                      ),
-                    ),
-                  ],
-                  pw.SizedBox(height: 4),
-                  pw.Text(
-                    invoice.invoiceNumber,
-                    style: const pw.TextStyle(
-                        fontSize: 14, color: PdfColors.grey600),
-                  ),
-                ],
-              ),
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.end,
-                children: [
-                  _buildStatusBadge(invoice.status),
-                  pw.SizedBox(height: 8),
-                  pw.Text('Tanggal: ${Helpers.formatDateFull(invoice.date)}',
-                      style: const pw.TextStyle(fontSize: 11)),
-                  pw.Text(
-                      'Jatuh Tempo: ${Helpers.formatDateFull(invoice.dueDate)}',
-                      style: const pw.TextStyle(fontSize: 11)),
-                ],
-              ),
-            ],
+         // ===== HEADER with Business Profile =====
+pw.Row(
+  crossAxisAlignment: pw.CrossAxisAlignment.start,
+  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+  children: [
+
+    // LEFT SIDE
+    pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+
+        // LOGO
+        if (logoImage != null)
+          pw.Container(
+            width: 90,
+            height: 90,
+            margin: const pw.EdgeInsets.only(right: 16),
+            child: pw.Image(
+              logoImage,
+              fit: pw.BoxFit.contain,
+            ),
           ),
 
-          // Business Profile Info
-          if (businessProfile != null && !businessProfile.isEmpty) ...[
-            pw.SizedBox(height: 16),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(10),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.circular(6),
+        // BUSINESS INFO
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+
+            if (businessProfile != null &&
+                businessProfile.businessName.isNotEmpty) ...[
+              pw.Text(
+                businessProfile.businessName,
+                style: pw.TextStyle(
+                  fontSize: 20,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue800,
+                ),
               ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  if (businessProfile.businessAddress.isNotEmpty)
-                    pw.Text('Alamat: ${businessProfile.businessAddress}',
-                        style: const pw.TextStyle(
-                            fontSize: 10, color: PdfColors.grey700)),
-                  if (businessProfile.businessPhone.isNotEmpty)
-                    pw.Text('Telp: ${businessProfile.businessPhone}',
-                        style: const pw.TextStyle(
-                            fontSize: 10, color: PdfColors.grey700)),
-                  if (businessProfile.businessEmail.isNotEmpty)
-                    pw.Text('Email: ${businessProfile.businessEmail}',
-                        style: const pw.TextStyle(
-                            fontSize: 10, color: PdfColors.grey700)),
-                  if (businessProfile.bankName.isNotEmpty) ...[
-                    pw.SizedBox(height: 6),
-                    pw.Text('Bank: ${businessProfile.bankName}',
-                        style: const pw.TextStyle(
-                            fontSize: 10, color: PdfColors.grey700)),
-                    pw.Text(
-                        'Rekening: ${businessProfile.bankAccount} a/n ${businessProfile.bankHolder}',
-                        style: const pw.TextStyle(
-                            fontSize: 10, color: PdfColors.grey700)),
-                  ],
-                ],
+
+              pw.SizedBox(height: 2),
+
+              pw.Text(
+                'INVOICE',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ] else ...[
+              pw.Text(
+                'INVOICE',
+                style: pw.TextStyle(
+                  fontSize: 28,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue800,
+                ),
+              ),
+            ],
+
+            pw.SizedBox(height: 4),
+
+            pw.Text(
+              invoice.invoiceNumber,
+              style: const pw.TextStyle(
+                fontSize: 14,
+                color: PdfColors.grey600,
               ),
             ),
           ],
+        ),
+      ],
+    ),
 
-          pw.SizedBox(height: 20),
+    // RIGHT SIDE
+    pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.end,
+      children: [
 
-          // ===== INFO CUSTOMER =====
-          _buildSectionTitle('INFO PELANGGAN'),
-          pw.SizedBox(height: 8),
-          _buildInfoRow('Nama', invoice.customerName),
-          if (invoice.customerAddress.isNotEmpty)
-            _buildInfoRow('Alamat', invoice.customerAddress),
-          if (invoice.customerEmail.isNotEmpty)
-            _buildInfoRow('Email', invoice.customerEmail),
-          if (invoice.customerPhone.isNotEmpty)
-            _buildInfoRow('Telepon', invoice.customerPhone),
+        _buildStatusBadge(invoice.status),
 
-          pw.SizedBox(height: 24),
+        pw.SizedBox(height: 8),
+
+        pw.Text(
+          'Tanggal: ${Helpers.formatDateFull(invoice.date)}',
+          style: const pw.TextStyle(fontSize: 11),
+        ),
+
+        pw.Text(
+          'Jatuh Tempo: ${Helpers.formatDateFull(invoice.dueDate)}',
+          style: const pw.TextStyle(fontSize: 11),
+        ),
+      ],
+    ),
+  ],
+),
+         pw.Row(
+  crossAxisAlignment: pw.CrossAxisAlignment.start,
+  children: [
+
+    // INFO BISNIS
+    pw.Expanded(
+      child: pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.grey100,
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+
+            _buildSectionTitle('INFO BISNIS'),
+
+            pw.SizedBox(height: 8),
+
+            if (businessProfile != null) ...[
+
+              if (businessProfile.businessAddress.isNotEmpty)
+                _buildCompactInfo(
+                  'Alamat',
+                  businessProfile.businessAddress,
+                ),
+
+              if (businessProfile.businessPhone.isNotEmpty)
+                _buildCompactInfo(
+                  'Telp',
+                  businessProfile.businessPhone,
+                ),
+
+              if (businessProfile.businessEmail.isNotEmpty)
+                _buildCompactInfo(
+                  'Email',
+                  businessProfile.businessEmail,
+                ),
+
+
+
+              if (businessProfile.bankAccount.isNotEmpty)
+                _buildCompactInfo(
+                  'Rekening',
+                  '${businessProfile.bankName} - ${businessProfile.bankAccount} a/n ${businessProfile.bankHolder}',
+                ),
+            ],
+          ],
+        ),
+      ),
+    ),
+
+    pw.SizedBox(width: 16),
+
+    // INFO CUSTOMER
+    pw.Expanded(
+      child: pw.Container(
+        padding: const pw.EdgeInsets.all(12),
+        decoration: pw.BoxDecoration(
+          color: PdfColors.grey100,
+          borderRadius: pw.BorderRadius.circular(8),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+
+            _buildSectionTitle('INFO PELANGGAN'),
+
+            pw.SizedBox(height: 8),
+
+            _buildCompactInfo(
+              'Nama',
+              invoice.customerName,
+            ),
+
+            if (invoice.customerAddress.isNotEmpty)
+              _buildCompactInfo(
+                'Alamat',
+                invoice.customerAddress,
+              ),
+
+            if (invoice.customerEmail.isNotEmpty)
+              _buildCompactInfo(
+                'Email',
+                invoice.customerEmail,
+              ),
+
+            if (invoice.customerPhone.isNotEmpty)
+              _buildCompactInfo(
+                'Telepon',
+                invoice.customerPhone,
+              ),
+          ],
+        ),
+      ),
+    ),
+  ],
+),
+
+          
 
           // ===== TABEL ITEMS =====
-          _buildSectionTitle('RINCIAN ITEM'),
           pw.SizedBox(height: 8),
+          _buildSectionTitle('RINCIAN ITEM'),
+          pw.SizedBox(height: 4),
           _buildItemsTable(items),
 
-          pw.SizedBox(height: 24),
+          pw.SizedBox(height: 12),
 
           // ===== TOTAL SUMMARY =====
           _buildSummary(invoice, items),
+          if (
+  invoice.notes.isNotEmpty ||
+  (businessProfile != null &&
+      businessProfile.notes.isNotEmpty)
+) ...[
 
-          if (invoice.notes.isNotEmpty) ...[
-            pw.SizedBox(height: 30),
-            _buildSectionTitle('CATATAN'),
-            pw.SizedBox(height: 8),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.circular(6),
-              ),
-              child: pw.Text(invoice.notes,
-                  style: const pw.TextStyle(
-                      fontSize: 11, color: PdfColors.grey700)),
-            ),
-          ],
+  pw.SizedBox(height: 20),
 
-          if (businessProfile != null && businessProfile.notes.isNotEmpty) ...[
-            pw.SizedBox(height: 20),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.circular(6),
-              ),
-              child: pw.Text(businessProfile.notes,
-                  style: const pw.TextStyle(
-                      fontSize: 11, color: PdfColors.grey700)),
+  pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+
+      // CATATAN BISNIS
+      if (businessProfile != null &&
+    businessProfile.notes.isNotEmpty)
+  pw.Expanded(
+    child: pw.Container(
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey100,
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Text(
+        businessProfile.notes,
+        style: const pw.TextStyle(
+          fontSize: 10,
+          color: PdfColors.grey700,
+          lineSpacing: 2,
+        ),
+      ),
+    ),
+  ),
+
+      // SPACING TENGAH
+      if (
+        businessProfile != null &&
+        businessProfile.notes.isNotEmpty &&
+        invoice.notes.isNotEmpty
+      )
+        pw.SizedBox(width: 16),
+
+      // CATATAN INVOICE
+      if (invoice.notes.isNotEmpty)
+        pw.Expanded(
+          child: pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: pw.BorderRadius.circular(8),
             ),
-          ],
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+
+                _buildSectionTitle('CATATAN'),
+
+                pw.SizedBox(height: 8),
+
+                pw.Text(
+                  invoice.notes,
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey700,
+                    lineSpacing: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+    ],
+  ),
+],
+         
 
           // ===== FOOTER =====
           pw.Spacer(),
@@ -265,30 +411,38 @@ class PdfHelper {
             color: PdfColors.grey700));
   }
 
-  static pw.Widget _buildInfoRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 4),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.SizedBox(
-              width: 80,
-              child: pw.Text(label,
-                  style: const pw.TextStyle(
-                      fontSize: 11, color: PdfColors.grey500))),
-          pw.SizedBox(
-              width: 16,
-              child: pw.Text(':',
-                  style: const pw.TextStyle(
-                      fontSize: 11, color: PdfColors.grey500))),
-          pw.Expanded(
-              child: pw.Text(value,
-                  style: pw.TextStyle(
-                      fontSize: 11, fontWeight: pw.FontWeight.bold))),
-        ],
-      ),
-    );
-  }
+  static pw.Widget _buildCompactInfo(
+  String label,
+  String value,
+) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.only(bottom: 6),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: 9,
+            color: PdfColors.grey600,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+
+        pw.SizedBox(height: 2),
+
+        pw.Text(
+          value,
+          style: const pw.TextStyle(
+            fontSize: 10,
+            color: PdfColors.black,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   static pw.Widget _buildItemsTable(List<Item> items) {
     return pw.TableHelper.fromTextArray(
