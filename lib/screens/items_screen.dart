@@ -20,6 +20,7 @@ class ItemsScreen extends StatefulWidget {
 
 class _ItemsScreenState extends State<ItemsScreen> {
   final _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   List<Product> _filteredProducts = [];
   bool _isSearching = false;
 
@@ -34,21 +35,29 @@ class _ItemsScreenState extends State<ItemsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        _isSearching = false;
-        _filteredProducts = [];
-      });
-      return;
-    }
-    setState(() => _isSearching = true);
-    final results = await context.read<ProductProvider>().searchProducts(query);
-    setState(() => _filteredProducts = results);
+void _onSearchChanged(String query) async {
+
+  // Saat kosong -> tampilkan semua produk lagi
+  if (query.trim().isEmpty) {
+    setState(() {
+      _filteredProducts = [];
+    });
+    return;
   }
+
+  final results =
+      await context.read<ProductProvider>().searchProducts(query);
+
+  if (mounted) {
+    setState(() {
+      _filteredProducts = results;
+    });
+  }
+}
 
   void _showAddProductDialog({Product? editProduct}) {
     final loc = AppLocalizations.of(context);
@@ -208,6 +217,11 @@ class _ItemsScreenState extends State<ItemsScreen> {
                           setState(() { _isSearching = false; _filteredProducts = []; });
                         } else {
                           setState(() => _isSearching = true);
+                          setState(() => _isSearching = true);
+
+Future.delayed(const Duration(milliseconds: 100), () {
+  _searchFocusNode.requestFocus();
+});
                         }
                       },
                     ),
@@ -220,15 +234,25 @@ class _ItemsScreenState extends State<ItemsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: AppSearchBar(
                   controller: _searchController,
+                  focusNode: _searchFocusNode,
                   onChanged: _onSearchChanged,
-                  onClose: () { _searchController.clear(); setState(() { _isSearching = false; _filteredProducts = []; }); },
+                  onClose: () { _searchController.clear();
+
+_searchFocusNode.unfocus();
+
+setState(() {
+  _isSearching = false;
+  _filteredProducts = [];
+}); },
                   hintText: loc.get('search_products'),
                 ),
               ),
             Expanded(
               child: Consumer<ProductProvider>(
                 builder: (context, provider, _) {
-                  final products = _isSearching ? _filteredProducts : provider.products;
+                  final products = _searchController.text.trim().isEmpty
+    ? provider.products
+    : _filteredProducts;
 
                   if (products.isEmpty) {
                     return EmptyStateWidget(

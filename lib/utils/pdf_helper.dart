@@ -10,6 +10,7 @@ import '../models/invoice.dart';
 import '../models/item.dart';
 import '../models/business_profile.dart';
 import 'helpers.dart';
+import '../models/bank_account.dart';
 
 /// PDF Helper - Generate invoice PDF profesional
 class PdfHelper {
@@ -63,13 +64,13 @@ if (businessProfile != null &&
     logoImage = pw.MemoryImage(imageBytes);
   }
 }
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
         build: (context) => [
-          // ===== HEADER with Business Profile =====
-         // ===== HEADER with Business Profile =====
+          // ===== HEADER =====
 pw.Row(
   crossAxisAlignment: pw.CrossAxisAlignment.start,
   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -92,13 +93,14 @@ pw.Row(
             ),
           ),
 
-        // BUSINESS INFO
+        // BUSINESS NAME + INVOICE
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
 
             if (businessProfile != null &&
                 businessProfile.businessName.isNotEmpty) ...[
+
               pw.Text(
                 businessProfile.businessName,
                 style: pw.TextStyle(
@@ -108,7 +110,7 @@ pw.Row(
                 ),
               ),
 
-              pw.SizedBox(height: 2),
+              pw.SizedBox(height: 4),
 
               pw.Text(
                 'INVOICE',
@@ -164,7 +166,11 @@ pw.Row(
     ),
   ],
 ),
-         pw.Row(
+
+pw.SizedBox(height: 20),
+
+// ===== INFO BISNIS & CUSTOMER =====
+pw.Row(
   crossAxisAlignment: pw.CrossAxisAlignment.start,
   children: [
 
@@ -204,13 +210,36 @@ pw.Row(
                   businessProfile.businessEmail,
                 ),
 
+              // MULTI BANK
+              if (businessProfile.bankAccounts.isNotEmpty)
+  pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Text(
+        'Bank',
+        style: pw.TextStyle(
+          fontSize: 9,
+          color: PdfColors.grey600,
+          fontWeight: pw.FontWeight.bold,
+        ),
+      ),
 
+      pw.SizedBox(height: 4),
 
-              if (businessProfile.bankAccount.isNotEmpty)
-                _buildCompactInfo(
-                  'Rekening',
-                  '${businessProfile.bankName} - ${businessProfile.bankAccount} a/n ${businessProfile.bankHolder}',
-                ),
+      ...businessProfile.bankAccounts.map((bank) {
+        return pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 3),
+          child: pw.Text(
+            '${bank.bankName} - ${bank.bankAccount} (${bank.bankHolder})',
+            style: const pw.TextStyle(
+              fontSize: 10,
+              color: PdfColors.black,
+            ),
+          ),
+        );
+      }).toList(),
+    ],
+  ),
             ],
           ],
         ),
@@ -264,10 +293,8 @@ pw.Row(
   ],
 ),
 
-          
-
           // ===== TABEL ITEMS =====
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 15),
           _buildSectionTitle('RINCIAN ITEM'),
           pw.SizedBox(height: 4),
           _buildItemsTable(items),
@@ -349,7 +376,6 @@ pw.Row(
     ],
   ),
 ],
-         
 
           // ===== FOOTER =====
           pw.Spacer(),

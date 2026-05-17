@@ -29,15 +29,19 @@ class InvoiceDetailScreen extends StatefulWidget {
 class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   List<Item> _items = [];
   bool _isLoading = true;
+  late Invoice invoice;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadItems();
-  }
+ @override
+void initState() {
+  super.initState();
+
+  invoice = widget.invoice;
+
+  _loadItems();
+}
 
   Future<void> _loadItems() async {
-    final data = await DBHelper.instance.getItems(widget.invoice.id!);
+    final data = await DBHelper.instance.getItems(invoice.id!);
     setState(() {
       _items = data.map((map) => Item.fromMap(map)).toList();
       _isLoading = false;
@@ -49,13 +53,17 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     await _loadItems();
   }
 
- Future<void> _changeStatus(InvoiceStatus newStatus) async {
+Future<void> _changeStatus(InvoiceStatus newStatus) async {
   await context
       .read<InvoiceProvider>()
-      .updateStatus(widget.invoice.id!, newStatus);
+      .updateStatus(invoice.id!, newStatus);
+
+  setState(() {
+    invoice = invoice.copyWith(status: newStatus);
+  });
 
   if (mounted) {
-    Navigator.pop(context, true);
+    Navigator.pop(context, invoice);
   }
 }
 
@@ -75,7 +83,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
 
     if (confirm == true) {
-      await context.read<InvoiceProvider>().deleteInvoice(widget.invoice.id!);
+      await context.read<InvoiceProvider>().deleteInvoice(invoice.id!);
       if (mounted) Navigator.pop(context);
     }
   }
@@ -107,8 +115,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   subtitle: Text(loc.get('share_whatsapp')),
                   onTap: () {
                     Navigator.pop(ctx);
-                    final invoice = widget.invoice.copyWith(items: _items);
-                    ShareHelper.shareToWhatsApp(invoice: invoice, items: _items);
+                    final updatedInvoice = invoice.copyWith(items: _items);
+                    ShareHelper.shareToWhatsApp(
+                    invoice: updatedInvoice,
+                    items: _items,
+                  );
                   },
                 ),
                 ListTile(
@@ -121,8 +132,12 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   subtitle: Text(loc.get('send_pdf_email')),
                   onTap: () {
                     Navigator.pop(ctx);
-                    final invoice = widget.invoice.copyWith(items: _items);
-                    ShareHelper.shareViaEmail(invoice: invoice, items: _items);
+                    final updatedInvoice = invoice.copyWith(items: _items);
+
+                    ShareHelper.shareViaEmail(
+                      invoice: updatedInvoice,
+                      items: _items,
+);
                   },
                 ),
                 ListTile(
@@ -135,8 +150,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   subtitle: Text(loc.get('share_pdf_desc')),
                   onTap: () {
                     Navigator.pop(ctx);
-                    final invoice = widget.invoice.copyWith(items: _items);
-                    ShareHelper.shareInvoicePdf(invoice: invoice, items: _items);
+                    final updatedInvoice = invoice.copyWith(items: _items);
+                    ShareHelper.shareInvoicePdf(
+                      invoice: updatedInvoice,
+                      items: _items,
+                    );
                   },
                 ),
               ],
@@ -147,22 +165,38 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
     );
   }
 
-  Future<void> _navigateToEdit() async {
-    final result = await Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => AddInvoiceScreen(editInvoice: widget.invoice.copyWith(items: _items)),
-        transitionDuration: const Duration(milliseconds: 400),
-        transitionsBuilder: (_, animation, __, child) {
-          return SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-            child: child,
-          );
-        },
-      ),
-    );
-    if (result == true) await _refreshData();
+Future<void> _navigateToEdit() async {
+  final result = await Navigator.push(
+    context,
+    PageRouteBuilder(
+      pageBuilder: (_, __, ___) =>
+          AddInvoiceScreen(editInvoice: invoice.copyWith(items: _items)),
+      transitionDuration: const Duration(milliseconds: 400),
+      transitionsBuilder: (_, animation, __, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.05),
+            end: Offset.zero,
+          ).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            ),
+          ),
+          child: child,
+        );
+      },
+    ),
+  );
+
+  if (result != null && result is Invoice) {
+    setState(() {
+      invoice = result;
+    });
+
+    await _refreshData();
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +209,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.picture_as_pdf_outlined), tooltip: loc.get('export_pdf'), onPressed: () {
             final profile = context.read<BusinessProfileProvider>().profile;
-            PdfHelper.generateAndPreviewInvoice(invoice: widget.invoice, items: _items, businessProfile: profile);
+            PdfHelper.generateAndPreviewInvoice(invoice: invoice, items: _items, businessProfile: profile);
           }),
           IconButton(icon: const Icon(Icons.share_outlined), tooltip: loc.get('share'), onPressed: _showShareBottomSheet),
           IconButton(icon: const Icon(Icons.edit_outlined), tooltip: loc.get('edit'), onPressed: _navigateToEdit),
@@ -197,7 +231,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                   const SizedBox(height: 16),
                   _buildSummaryCard(isDark, loc),
                   const SizedBox(height: 16),
-                  if (widget.invoice.notes.isNotEmpty) _buildNotesCard(isDark, loc),
+                  if (invoice.notes.isNotEmpty) _buildNotesCard(isDark, loc),
                   const SizedBox(height: 16),
                   _buildStatusAction(isDark, loc),
                   const SizedBox(height: 32),
@@ -208,11 +242,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   }
 
   Widget _buildHeaderCard(bool isDark, AppLocalizations loc) {
-    final daysLeft = Helpers.daysUntilDue(widget.invoice.dueDate);
+    final daysLeft = Helpers.daysUntilDue(invoice.dueDate);
     String? dueInfo;
     Color? dueColor;
 
-    if (widget.invoice.status != InvoiceStatus.paid) {
+    if (invoice.status != InvoiceStatus.paid) {
       if (daysLeft < 0) {
         dueInfo = '${-daysLeft} ${loc.get('late_days')}';
         dueColor = Colors.red;
@@ -240,8 +274,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(widget.invoice.invoiceNumber, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA), fontWeight: FontWeight.w500)),
-              StatusBadge(status: widget.invoice.status),
+              Text(invoice.invoiceNumber, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA), fontWeight: FontWeight.w500)),
+              StatusBadge(status: invoice.status),
             ],
           ),
           const SizedBox(height: 12),
@@ -249,11 +283,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             children: [
               Icon(Icons.calendar_today_outlined, size: 14, color: isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC)),
               const SizedBox(width: 4),
-              Text(Helpers.formatDateFull(widget.invoice.date), style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC))),
+              Text(Helpers.formatDateFull(invoice.date), style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC))),
               const SizedBox(width: 16),
               Icon(Icons.schedule_outlined, size: 14, color: dueColor ?? (isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC))),
               const SizedBox(width: 4),
-              Text('JT: ${Helpers.formatDateFull(widget.invoice.dueDate)}', style: TextStyle(fontSize: 13, color: dueColor ?? (isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC)))),
+              Text('JT: ${Helpers.formatDateFull(invoice.dueDate)}', style: TextStyle(fontSize: 13, color: dueColor ?? (isDark ? const Color(0xFF6666AA) : const Color(0xFFBBBBCC)))),
             ],
           ),
           if (dueInfo != null) ...[
@@ -295,7 +329,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
               CircleAvatar(
                 backgroundColor: (isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E)).withOpacity(0.1),
                 child: Text(
-                  widget.invoice.customerName.isNotEmpty ? widget.invoice.customerName[0].toUpperCase() : '?',
+                  invoice.customerName.isNotEmpty ? invoice.customerName[0].toUpperCase() : '?',
                   style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E)),
                 ),
               ),
@@ -304,13 +338,13 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.invoice.customerName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF1A1A2E))),
-                    if (widget.invoice.customerAddress.isNotEmpty)
-                      Text(widget.invoice.customerAddress, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
-                    if (widget.invoice.customerEmail.isNotEmpty)
-                      Text(widget.invoice.customerEmail, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
-                    if (widget.invoice.customerPhone.isNotEmpty)
-                      Text(widget.invoice.customerPhone, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
+                    Text(invoice.customerName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color(0xFF1A1A2E))),
+                    if (invoice.customerAddress.isNotEmpty)
+                      Text(invoice.customerAddress, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
+                    if (invoice.customerEmail.isNotEmpty)
+                      Text(invoice.customerEmail, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
+                    if (invoice.customerPhone.isNotEmpty)
+                      Text(invoice.customerPhone, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF8888AA) : const Color(0xFF9999AA))),
                   ],
                 ),
               ),
@@ -377,8 +411,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
 
   Widget _buildSummaryCard(bool isDark, AppLocalizations loc) {
     final subtotal = _items.fold<double>(0, (sum, item) => sum + item.total);
-    final tax = subtotal * (widget.invoice.tax / 100);
-    final total = subtotal + tax - widget.invoice.discount;
+    final tax = subtotal * (invoice.tax / 100);
+    final total = subtotal + tax - invoice.discount;
 
     return Container(
       width: double.infinity,
@@ -397,10 +431,10 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
           Text(loc.get('payment_summary'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.7), letterSpacing: 0.5)),
           const SizedBox(height: 14),
           _buildSummaryRow(loc.get('subtotal'), Helpers.formatCurrency(subtotal), Colors.white.withOpacity(0.7)),
-          if (widget.invoice.tax > 0)
-            _buildSummaryRow('Pajak (${widget.invoice.tax.toStringAsFixed(0)}%)', Helpers.formatCurrency(tax), Colors.white.withOpacity(0.7)),
-          if (widget.invoice.discount > 0)
-            _buildSummaryRow(loc.get('discount'), '-${Helpers.formatCurrency(widget.invoice.discount)}', Colors.red.shade300),
+          if (invoice.tax > 0)
+            _buildSummaryRow('Pajak (${invoice.tax.toStringAsFixed(0)}%)', Helpers.formatCurrency(tax), Colors.white.withOpacity(0.7)),
+          if (invoice.discount > 0)
+            _buildSummaryRow(loc.get('discount'), '-${Helpers.formatCurrency(invoice.discount)}', Colors.red.shade300),
           const Divider(color: Color(0xFF3A3A5A), height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -444,14 +478,14 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(widget.invoice.notes, style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFBBBBCC) : const Color(0xFF5D4037), height: 1.5)),
+          Text(invoice.notes, style: TextStyle(fontSize: 14, color: isDark ? const Color(0xFFBBBBCC) : const Color(0xFF5D4037), height: 1.5)),
         ],
       ),
     );
   }
 
   Widget _buildStatusAction(bool isDark, AppLocalizations loc) {
-    if (widget.invoice.status == InvoiceStatus.paid) {
+    if (invoice.status == InvoiceStatus.paid) {
       return SizedBox(
         width: double.infinity,
         height: 48,

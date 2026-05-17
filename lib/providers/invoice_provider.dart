@@ -61,49 +61,107 @@ class InvoiceProvider extends ChangeNotifier {
     return data.map((map) => Item.fromMap(map)).toList();
   }
 
-  /// Tambah invoice baru
   Future<Invoice?> addInvoice(Invoice invoice) async {
-    try {
-      final invoiceNumber = await _dbHelper.generateInvoiceNumber();
-      final invoiceWithNumber = invoice.copyWith(invoiceNumber: invoiceNumber);
-      final id = await _dbHelper.insertInvoice(invoiceWithNumber.toMap());
+  try {
 
-      if (id > 0) {
-        final items = invoice.items.map((item) {
-          return item.copyWith(invoiceId: id).toMap();
-        }).toList();
-        if (items.isNotEmpty) {
-          await _dbHelper.insertItems(items);
-        }
-        await loadInvoices();
-        return invoiceWithNumber.copyWith(id: id);
+    // HITUNG TOTAL
+    final subtotal = invoice.items.fold<double>(
+      0,
+      (sum, item) => sum + item.total,
+    );
+
+    final taxAmount = subtotal * (invoice.tax / 100);
+
+    final grandTotal =
+        subtotal + taxAmount - invoice.discount;
+
+    final invoiceNumber =
+        await _dbHelper.generateInvoiceNumber();
+
+    // UPDATE OBJECT INVOICE
+    final invoiceWithNumber = invoice.copyWith(
+      invoiceNumber: invoiceNumber,
+      total: grandTotal,
+    );
+
+    // INSERT INVOICE
+    final id = await _dbHelper.insertInvoice(
+      invoiceWithNumber.toMap(),
+    );
+
+    if (id > 0) {
+
+      // INSERT ITEMS
+      final items = invoice.items.map((item) {
+        return item.copyWith(
+          invoiceId: id,
+        ).toMap();
+      }).toList();
+
+      if (items.isNotEmpty) {
+        await _dbHelper.insertItems(items);
       }
-    } catch (e) {
-      debugPrint('Error adding invoice: $e');
+
+      await loadInvoices();
+
+      return invoiceWithNumber.copyWith(id: id);
     }
-    return null;
+  } catch (e) {
+    debugPrint('Error adding invoice: $e');
   }
+
+  return null;
+}
 
   /// Update invoice
-  Future<bool> updateInvoice(Invoice invoice) async {
-    try {
-      final result = await _dbHelper.updateInvoice(invoice.id!, invoice.toMap());
-      if (result > 0) {
-        await _dbHelper.deleteItemsByInvoiceId(invoice.id!);
-        if (invoice.items.isNotEmpty) {
-          final items = invoice.items.map((item) {
-            return item.copyWith(invoiceId: invoice.id!).toMap();
-          }).toList();
-          await _dbHelper.insertItems(items);
-        }
-        await loadInvoices();
-        return true;
+Future<bool> updateInvoice(Invoice invoice) async {
+  try {
+
+    // HITUNG ULANG TOTAL
+    final subtotal = invoice.items.fold<double>(
+      0,
+      (sum, item) => sum + item.total,
+    );
+
+    final taxAmount = subtotal * (invoice.tax / 100);
+    final grandTotal = subtotal + taxAmount - invoice.discount;
+
+    // UPDATE TOTAL KE OBJECT INVOICE
+    final updatedInvoice = invoice.copyWith(
+      total: grandTotal,
+    );
+
+    // UPDATE INVOICE
+    final result = await _dbHelper.updateInvoice(
+      invoice.id!,
+      updatedInvoice.toMap(),
+    );
+
+    if (result > 0) {
+
+      // HAPUS ITEM LAMA
+      await _dbHelper.deleteItemsByInvoiceId(invoice.id!);
+
+      // INSERT ITEM BARU
+      if (updatedInvoice.items.isNotEmpty) {
+        final items = updatedInvoice.items.map((item) {
+          return item.copyWith(
+            invoiceId: invoice.id!,
+          ).toMap();
+        }).toList();
+
+        await _dbHelper.insertItems(items);
       }
-    } catch (e) {
-      debugPrint('Error updating invoice: $e');
+
+      await loadInvoices();
+      return true;
     }
-    return false;
+  } catch (e) {
+    debugPrint('Error updating invoice: $e');
   }
+
+  return false;
+}
 
   /// Hapus invoice
   Future<bool> deleteInvoice(int id) async {

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -101,9 +102,7 @@ class DBHelper {
         business_phone $textTypeNull,
         business_email $textTypeNull,
         logo_path $textTypeNull,
-        bank_name $textTypeNull,
-        bank_account $textTypeNull,
-        bank_holder $textTypeNull,
+        bank_accounts TEXT,
         notes $textTypeNull
       )
     ''');
@@ -157,9 +156,7 @@ class DBHelper {
           business_phone TEXT,
           business_email TEXT,
           logo_path TEXT,
-          bank_name TEXT,
-          bank_account TEXT,
-          bank_holder TEXT,
+          bank_accounts TEXT,
           notes TEXT
         )
       ''');
@@ -374,17 +371,37 @@ class DBHelper {
     final results = await db.query('business_profile', limit: 1);
     if (results.isEmpty) return null;
     return results.first;
-  }
+  }Future<int> saveBusinessProfile(
+  Map<String, dynamic> data,
+) async {
+  final db = await instance.database;
 
-  Future<int> saveBusinessProfile(Map<String, dynamic> data) async {
-    final db = await instance.database;
-    final existing = await getBusinessProfile();
-    if (existing != null) {
-      return await db.update('business_profile', data, where: 'id = ?', whereArgs: [existing['id']]);
-    } else {
-      return await db.insert('business_profile', data);
-    }
+  final existing =
+      await getBusinessProfile();
+
+  final cleanedData = {
+    ...data,
+
+    // pastikan selalu string JSON
+    'bank_accounts':
+        data['bank_accounts'] ??
+            jsonEncode([]),
+  };
+
+  if (existing != null) {
+    return await db.update(
+      'business_profile',
+      cleanedData,
+      where: 'id = ?',
+      whereArgs: [existing['id']],
+    );
+  } else {
+    return await db.insert(
+      'business_profile',
+      cleanedData,
+    );
   }
+}
 
   // ==========================================
   // UTILITY

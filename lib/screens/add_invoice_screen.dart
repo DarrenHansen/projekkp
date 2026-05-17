@@ -43,6 +43,13 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   @override
   void initState() {
     super.initState();
+    _taxController.addListener(() {
+  setState(() {});
+});
+
+_discountController.addListener(() {
+  setState(() {});
+});
     if (widget.editInvoice != null) {
       _isEditing = true;
       final invoice = widget.editInvoice!;
@@ -105,261 +112,558 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   }
 
   /// Show customer selection dialog
-  void _showCustomerSelection() {
-    final loc = AppLocalizations.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final customerProvider = context.read<CustomerProvider>();
+ void _showCustomerSelection() {
+  final loc = AppLocalizations.of(context);
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final customerProvider = context.read<CustomerProvider>();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, scrollController) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(loc.get('select_customer'),
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w700)),
-                      IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(ctx)),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            // Just keep the current empty fields for manual input
-                          },
-                          icon: const Icon(Icons.person_add, size: 18),
-                          label: Text(loc.get('create_new_customer')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark
-                                ? const Color(0xFFE94560)
-                                : const Color(0xFF1A1A2E),
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: customerProvider.customers.isEmpty
-                      ? Center(
-                          child: Text(loc.get('no_clients'),
-                              style: TextStyle(
-                                  color: isDark
-                                      ? const Color(0xFF6666AA)
-                                      : const Color(0xFF9999AA))))
-                      : ListView.builder(
-                          controller: scrollController,
-                          itemCount: customerProvider.customers.length,
-                          itemBuilder: (_, index) {
-                            final customer = customerProvider.customers[index];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: (isDark
-                                        ? const Color(0xFFE94560)
-                                        : const Color(0xFF1A1A2E))
-                                    .withOpacity(0.1),
-                                child: Text(customer.name[0].toUpperCase(),
-                                    style: TextStyle(
-                                        color: isDark
-                                            ? const Color(0xFFE94560)
-                                            : const Color(0xFF1A1A2E),
-                                        fontWeight: FontWeight.w700)),
+  final TextEditingController searchController =
+      TextEditingController();
+
+  List<Customer> filteredCustomers =
+      List.from(customerProvider.customers);
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(20),
+      ),
+    ),
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setModalState) {
+          void filterCustomers(String query) {
+            setModalState(() {
+              if (query.trim().isEmpty) {
+                filteredCustomers =
+                    List.from(customerProvider.customers);
+              } else {
+                filteredCustomers = customerProvider.customers
+                    .where(
+                      (customer) =>
+                          customer.name.toLowerCase().contains(
+                                query.toLowerCase(),
+                              ) ||
+                          customer.phone.toLowerCase().contains(
+                                query.toLowerCase(),
+                              ) ||
+                          customer.email.toLowerCase().contains(
+                                query.toLowerCase(),
                               ),
-                              title: Text(customer.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600)),
-                              subtitle: Text(customer.phone.isNotEmpty
-                                  ? customer.phone
-                                  : customer.email),
-                              onTap: () {
-                                setState(() {
-                                  _customerController.text = customer.name;
-                                  _addressController.text = customer.address;
-                                  _emailController.text = customer.email;
-                                  _phoneController.text = customer.phone;
-                                });
-                                Navigator.pop(ctx);
-                              },
-                            );
-                          },
-                        ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+                    )
+                    .toList();
+              }
+            });
+          }
 
-  /// Show add item dialog with option to select from saved products
-  void _showAddItemDialog() {
-    
-    final loc = AppLocalizations.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final productProvider = context.read<ProductProvider>();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.3,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (_, scrollController) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(loc.get('add_item'),
+          return DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (_, scrollController) {
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          loc.get('select_customer'),
                           style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w700)),
-                      IconButton(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(ctx)),
-                    ],
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _showCreateItemDialog();
-                          },
-                          icon: const Icon(Icons.add, size: 18),
-                          label: Text(loc.get('create_new_item')),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                                color: isDark
-                                    ? const Color(0xFF2A2A4A)
-                                    : const Color(0xFFE0E0F0)),
-                          ),
+
+                  // BUTTON BUAT PELANGGAN BARU
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                        },
+                        icon: const Icon(
+                          Icons.person_add,
+                          size: 18,
+                        ),
+                        label: Text(
+                          loc.get('create_new_customer'),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark
+                              ? const Color(0xFFE94560)
+                              : const Color(0xFF1A1A2E),
+                          foregroundColor: Colors.white,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _showSelectProductDialog();
-                          },
-                          icon:
-                              const Icon(Icons.inventory_2_outlined, size: 18),
-                          label: Text(loc.get('select_from_products')),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark
-                                ? const Color(0xFFE94560)
-                                : const Color(0xFF1A1A2E),
-                            foregroundColor: Colors.white,
-                          ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // SEARCH BAR
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                    ),
+                    child: TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      onChanged: filterCustomers,
+                      decoration: InputDecoration(
+                        hintText: loc.get('search_clients'),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                        ),
+                        filled: true,
+                        fillColor: isDark
+                            ? const Color(0xFF1A1A2E)
+                            : const Color(0xFFF5F5FA),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(
+                          vertical: 0,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                // Quick add from products list
-                Expanded(
-                  child: productProvider.products.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.inventory_2_outlined,
+
+                  const SizedBox(height: 16),
+
+                  // CUSTOMER LIST
+                  Expanded(
+                    child: filteredCustomers.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize:
+                                  MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.search_off,
                                   size: 40,
                                   color: isDark
-                                      ? const Color(0xFF6666AA)
-                                      : const Color(0xFFCCCCDD)),
-                              const SizedBox(height: 8),
-                              Text(loc.get('no_products'),
-                                  style: TextStyle(
-                                      color: isDark
-                                          ? const Color(0xFF6666AA)
-                                          : const Color(0xFF9999AA))),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: scrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: productProvider.products.length,
-                          itemBuilder: (_, index) {
-                            final product = productProvider.products[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF1A1A2E)
-                                    : const Color(0xFFF5F5FA),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                              title: Text(
-                                product.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
+                                      ? const Color(
+                                          0xFF6666AA)
+                                      : const Color(
+                                          0xFFCCCCDD),
                                 ),
-                              ),
-                              subtitle: Text(
-                                Helpers.formatCurrency(product.price),
-                              ),
-
-                              trailing: const Icon(
-                                Icons.add_circle,
-                                color: Color(0xFF1A1A2E),
-                              ),
-
-                              onTap: () {
-                                Navigator.pop(ctx);
-                                _showQuantityDialog(product);
-                              },
+                                const SizedBox(height: 8),
+                                Text(
+                                  loc.get('no_clients'),
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(
+                                            0xFF6666AA)
+                                        : const Color(
+                                            0xFF9999AA),
+                                  ),
+                                ),
+                              ],
                             ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+                          )
+                        : ListView.builder(
+                            controller:
+                                scrollController,
+                            padding:
+                                const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
+                            itemCount:
+                                filteredCustomers.length,
+                            itemBuilder: (_, index) {
+                              final customer =
+                                  filteredCustomers[index];
 
+                              return Container(
+                                margin:
+                                    const EdgeInsets.only(
+                                  bottom: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(
+                                          0xFF1A1A2E)
+                                      : const Color(
+                                          0xFFF5F5FA),
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(14),
+                                ),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor:
+                                        (isDark
+                                                ? const Color(
+                                                    0xFFE94560)
+                                                : const Color(
+                                                    0xFF1A1A2E))
+                                            .withOpacity(
+                                                0.1),
+                                    child: Text(
+                                      customer.name[0]
+                                          .toUpperCase(),
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? const Color(
+                                                0xFFE94560)
+                                            : const Color(
+                                                0xFF1A1A2E),
+                                        fontWeight:
+                                            FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+
+                                  title: Text(
+                                    customer.name,
+                                    style:
+                                        const TextStyle(
+                                      fontWeight:
+                                          FontWeight.w600,
+                                    ),
+                                  ),
+
+                                  subtitle: Text(
+                                    customer.phone
+                                            .isNotEmpty
+                                        ? customer.phone
+                                        : customer.email,
+                                  ),
+
+                                  trailing: Icon(
+                                    Icons.check_circle,
+                                    color: isDark
+                                        ? const Color(
+                                            0xFFE94560)
+                                        : const Color(
+                                            0xFF1A1A2E),
+                                  ),
+
+                                  onTap: () {
+                                    setState(() {
+                                      _customerController
+                                          .text = customer.name;
+
+                                      _addressController
+                                              .text =
+                                          customer.address;
+
+                                      _emailController.text =
+                                          customer.email;
+
+                                      _phoneController.text =
+                                          customer.phone;
+                                    });
+
+                                    Navigator.pop(ctx);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    },
+  );
+}
+
+  /// Show add item dialog with option to select from saved products
+void _showAddItemDialog() {
+  final loc = AppLocalizations.of(context);
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final productProvider = context.read<ProductProvider>();
+
+  final TextEditingController searchController =
+      TextEditingController();
+
+  List<Product> filteredProducts =
+      List.from(productProvider.products);
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(20),
+      ),
+    ),
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setModalState) {
+          void filterProducts(String query) {
+            setModalState(() {
+              if (query.trim().isEmpty) {
+                filteredProducts =
+                    List.from(productProvider.products);
+              } else {
+                filteredProducts = productProvider.products
+                    .where(
+                      (product) => product.name
+                          .toLowerCase()
+                          .contains(query.toLowerCase()),
+                    )
+                    .toList();
+              }
+            });
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.75,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (_, scrollController) {
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          loc.get('add_item'),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // BUTTON BUAT BARU
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _showCreateItemDialog();
+                        },
+                        icon: const Icon(
+                          Icons.add,
+                          size: 18,
+                        ),
+                        label: Text(
+                          loc.get('create_new_item'),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF2A2A4A)
+                                : const Color(0xFFE0E0F0),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // SEARCH BAR
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                    ),
+                    child: TextField(
+                      controller: searchController,
+                      autofocus: true,
+                      onChanged: filterProducts,
+                      decoration: InputDecoration(
+                        hintText:
+                            loc.get('search_products'),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                        ),
+                        filled: true,
+                        fillColor: isDark
+                            ? const Color(0xFF1A1A2E)
+                            : const Color(0xFFF5F5FA),
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(
+                          vertical: 0,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // PRODUCT LIST
+                  Expanded(
+                    child: filteredProducts.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize:
+                                  MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.search_off,
+                                  size: 40,
+                                  color: isDark
+                                      ? const Color(
+                                          0xFF6666AA)
+                                      : const Color(
+                                          0xFFCCCCDD),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  loc.get('no_products'),
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(
+                                            0xFF6666AA)
+                                        : const Color(
+                                            0xFF9999AA),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller:
+                                scrollController,
+                            padding:
+                                const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
+                            itemCount:
+                                filteredProducts.length,
+                            itemBuilder: (_, index) {
+                              final product =
+                                  filteredProducts[index];
+
+                              return Container(
+                                margin:
+                                    const EdgeInsets.only(
+                                  bottom: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(
+                                          0xFF1A1A2E)
+                                      : const Color(
+                                          0xFFF5F5FA),
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(14),
+                                ),
+                                child: ListTile(
+                                  leading: Container(
+                                    width: 46,
+                                    height: 46,
+                                    decoration:
+                                        BoxDecoration(
+                                      color: isDark
+                                          ? const Color(
+                                              0xFF16162A)
+                                          : Colors.white,
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(
+                                                  10),
+                                    ),
+                                    child: const Icon(
+                                      Icons
+                                          .inventory_2_outlined,
+                                    ),
+                                  ),
+
+                                  title: Text(
+                                    product.name,
+                                    style:
+                                        const TextStyle(
+                                      fontWeight:
+                                          FontWeight.w600,
+                                    ),
+                                  ),
+
+                                  subtitle: Text(
+                                    Helpers
+                                        .formatCurrency(
+                                      product.price,
+                                    ),
+                                  ),
+
+                                  trailing: Icon(
+                                    Icons
+                                        .add_circle_rounded,
+                                    color: isDark
+                                        ? const Color(
+                                            0xFFE94560)
+                                        : const Color(
+                                            0xFF1A1A2E),
+                                  ),
+
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+
+                                    _showQuantityDialog(
+                                      product,
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    },
+  );
+}
   void _showCreateItemDialog() {
     final nameController = TextEditingController();
     final priceController = TextEditingController();
@@ -618,20 +922,23 @@ void _showQuantityDialog(Product product) {
 
       try {
         final invoice = Invoice(
-          id: widget.editInvoice?.id,
-          invoiceNumber: widget.editInvoice?.invoiceNumber ?? '',
-          customerName: _customerController.text.trim(),
-          customerAddress: _addressController.text.trim(),
-          customerEmail: _emailController.text.trim(),
-          customerPhone: _phoneController.text.trim(),
-          date: Helpers.dateToDb(_selectedDate),
-          dueDate: Helpers.dateToDb(_selectedDueDate),
-          tax: double.tryParse(_taxController.text) ?? 0,
-          discount: double.tryParse(_discountController.text) ?? 0,
-          notes: _notesController.text.trim(),
-          status: _selectedStatus,
-          items: _items,
-        );
+  id: widget.editInvoice?.id,
+  invoiceNumber: widget.editInvoice?.invoiceNumber ?? '',
+  customerName: _customerController.text.trim(),
+  customerAddress: _addressController.text.trim(),
+  customerEmail: _emailController.text.trim(),
+  customerPhone: _phoneController.text.trim(),
+  date: Helpers.dateToDb(_selectedDate),
+  dueDate: Helpers.dateToDb(_selectedDueDate),
+
+  total: _grandTotal,
+
+  tax: double.tryParse(_taxController.text) ?? 0,
+  discount: double.tryParse(_discountController.text) ?? 0,
+  notes: _notesController.text.trim(),
+  status: _selectedStatus,
+  items: _items,
+);
 
         final provider = context.read<InvoiceProvider>();
         bool success;
@@ -653,14 +960,16 @@ void _showQuantityDialog(Product product) {
           }
         }
 
-        if (mounted) {
-          if (success) {
-            Navigator.pop(context, true);
-          } else {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(loc.get('failed_save'))));
-          }
-        }
+       if (mounted) {
+  if (success) {
+    Navigator.pop(context, invoice);
+  } else {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+          SnackBar(content: Text(loc.get('failed_save'))),
+        );
+  }
+}
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context)
@@ -1236,34 +1545,68 @@ Widget _buildItemTile(Item item, int index, bool isDark) {
   );
 }
 
-  Widget _buildSummaryCard(bool isDark, AppLocalizations loc) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF0F0F5),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          _buildSummaryRow(
-              loc.get('subtotal'), Helpers.formatCurrency(_subtotal), isDark),
-          if ((double.tryParse(_taxController.text) ?? 0) > 0)
-            _buildSummaryRow(loc.get('tax_percent'),
-                Helpers.formatCurrency(_taxAmount), isDark),
-          if ((double.tryParse(_discountController.text) ?? 0) > 0)
-            _buildSummaryRow(
-                loc.get('discount'),
-                '-${Helpers.formatCurrency(double.tryParse(_discountController.text) ?? 0)}',
-                isDark,
-                textColor: Colors.red),
-          const Divider(height: 24),
-          _buildSummaryRow(loc.get('grand_total'),
-              Helpers.formatCurrency(_grandTotal), isDark,
-              isBold: true, fontSize: 18),
-        ],
-      ),
-    );
-  }
+Widget _buildSummaryCard(bool isDark, AppLocalizations loc) {
+  final taxPercent =
+      double.tryParse(_taxController.text) ?? 0;
+
+  final discount =
+      double.tryParse(_discountController.text) ?? 0;
+
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: isDark
+          ? const Color(0xFF1A1A2E)
+          : const Color(0xFFF0F0F5),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      children: [
+        _buildSummaryRow(
+          loc.get('subtotal'),
+          Helpers.formatCurrency(_subtotal),
+          isDark,
+        ),
+
+        // TAX
+        if (taxPercent > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _buildSummaryRow(
+              'Pajak (${taxPercent.toStringAsFixed(0)}%)',
+              '${Helpers.formatCurrency(_taxAmount)}',
+              isDark,
+            ),
+          ),
+
+        // DISCOUNT
+        if (discount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _buildSummaryRow(
+              loc.get('discount'),
+              '-${Helpers.formatCurrency(discount)}',
+              isDark,
+              textColor: Colors.red,
+            ),
+          ),
+
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 14),
+          child: Divider(height: 1),
+        ),
+
+        _buildSummaryRow(
+          loc.get('grand_total'),
+          Helpers.formatCurrency(_grandTotal),
+          isDark,
+          isBold: true,
+          fontSize: 18,
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildSummaryRow(String label, String value, bool isDark,
       {bool isBold = false, double fontSize = 14, Color? textColor}) {

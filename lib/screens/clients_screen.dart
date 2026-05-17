@@ -15,6 +15,7 @@ class ClientsScreen extends StatefulWidget {
 }
 
 class _ClientsScreenState extends State<ClientsScreen> {
+  final FocusNode _searchFocusNode = FocusNode();
   final _searchController = TextEditingController();
   List<Customer> _filteredClients = [];
   bool _isSearching = false;
@@ -30,18 +31,29 @@ class _ClientsScreenState extends State<ClientsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged(String query) async {
-    if (query.isEmpty) {
-      setState(() { _isSearching = false; _filteredClients = []; });
-      return;
-    }
-    setState(() => _isSearching = true);
-    final results = await context.read<CustomerProvider>().searchCustomers(query);
-    setState(() => _filteredClients = results);
+void _onSearchChanged(String query) async {
+
+  // Saat kosong -> tampilkan semua customer lagi
+  if (query.trim().isEmpty) {
+    setState(() {
+      _filteredClients = [];
+    });
+    return;
   }
+
+  final results =
+      await context.read<CustomerProvider>().searchCustomers(query);
+
+  if (mounted) {
+    setState(() {
+      _filteredClients = results;
+    });
+  }
+}
 
   void _showAddClientDialog({Customer? editClient}) {
     final loc = AppLocalizations.of(context);
@@ -170,6 +182,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           setState(() { _isSearching = false; _filteredClients = []; });
                         } else {
                           setState(() => _isSearching = true);
+
+Future.delayed(const Duration(milliseconds: 100), () {
+  _searchFocusNode.requestFocus();
+});
                         }
                       },
                     ),
@@ -182,15 +198,25 @@ class _ClientsScreenState extends State<ClientsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: AppSearchBar(
                   controller: _searchController,
+                  focusNode: _searchFocusNode,
                   onChanged: _onSearchChanged,
-                  onClose: () { _searchController.clear(); setState(() { _isSearching = false; _filteredClients = []; }); },
+                  onClose: () { _searchController.clear();
+
+_searchFocusNode.unfocus();
+
+setState(() {
+  _isSearching = false;
+  _filteredClients = [];
+}); },
                   hintText: loc.get('search_clients'),
                 ),
               ),
             Expanded(
               child: Consumer<CustomerProvider>(
                 builder: (context, provider, _) {
-                  final customers = _isSearching ? _filteredClients : provider.customers;
+                  final customers = _searchController.text.trim().isEmpty
+    ? provider.customers
+    : _filteredClients;
 
                   if (customers.isEmpty) {
                     return EmptyStateWidget(

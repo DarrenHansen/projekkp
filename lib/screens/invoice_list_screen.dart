@@ -20,6 +20,7 @@ class InvoiceListScreen extends StatefulWidget {
 
 class _InvoiceListScreenState extends State<InvoiceListScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   bool _isSearching = false;
   String _selectedFilter = 'all';
 
@@ -32,25 +33,25 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
   }
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+void dispose() {
+  _searchController.dispose();
+  _searchFocusNode.dispose();
+  super.dispose();
+}
 
-  void _onSearchChanged(String query) {
-    context.read<InvoiceProvider>().searchInvoices(query);
-    if (query.isNotEmpty && !_isSearching) {
-      setState(() => _isSearching = true);
-    } else if (query.isEmpty && _isSearching) {
-      setState(() => _isSearching = false);
-    }
-  }
+ void _onSearchChanged(String query) {
+  context.read<InvoiceProvider>().searchInvoices(query);
+}
 
-  void _onSearchClose() {
-    _searchController.clear();
-    setState(() => _isSearching = false);
-    context.read<InvoiceProvider>().resetFilters();
-  }
+void _onSearchClose() {
+  _searchController.clear();
+
+  FocusScope.of(context).unfocus();
+
+  setState(() => _isSearching = false);
+
+  context.read<InvoiceProvider>().resetFilters();
+}
 
   void _onFilterChanged(String filter) {
     setState(() => _selectedFilter = filter);
@@ -90,7 +91,13 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             if (_isSearching)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: AppSearchBar(controller: _searchController, onChanged: _onSearchChanged, onClose: _onSearchClose, showClose: true),
+                child: AppSearchBar(
+  controller: _searchController,
+  focusNode: _searchFocusNode,
+  onChanged: _onSearchChanged,
+  onClose: _onSearchClose,
+  showClose: true,
+),
               ),
             if (_isSearching) const SizedBox(height: 12),
             StatusFilterChips(selectedFilter: _selectedFilter, onFilterChanged: _onFilterChanged),
@@ -203,12 +210,19 @@ class _InvoiceListScreenState extends State<InvoiceListScreen> {
             child: IconButton(
               icon: Icon(_isSearching ? Icons.close : Icons.search_rounded, color: isDark ? Colors.white : const Color(0xFF1A1A2E), size: 22),
               onPressed: () {
-                if (_isSearching) {
-                  _onSearchClose();
-                } else {
-                  setState(() => _isSearching = true);
-                }
-              },
+  if (_isSearching) {
+    _onSearchClose();
+  } else {
+    setState(() => _isSearching = true);
+
+    Future.delayed(
+      const Duration(milliseconds: 100),
+      () {
+        _searchFocusNode.requestFocus();
+      },
+    );
+  }
+},
             ),
           ),
         ],

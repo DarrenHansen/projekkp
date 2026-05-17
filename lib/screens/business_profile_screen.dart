@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../models/bank_account.dart';
 
 import '../providers/business_profile_provider.dart';
 import '../models/business_profile.dart';
@@ -21,12 +22,29 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
-  final _bankNameController = TextEditingController();
-  final _bankAccountController = TextEditingController();
-  final _bankHolderController = TextEditingController();
+  List<Map<String, TextEditingController>> _bankControllers = [];
   final _notesController = TextEditingController();
   String _logoPath = '';
   bool _isSaving = false;
+  void _addBankAccount() {
+  setState(() {
+    _bankControllers.add({
+      'bankName': TextEditingController(),
+      'bankAccount': TextEditingController(),
+      'bankHolder': TextEditingController(),
+    });
+  });
+}
+
+void _removeBankAccount(int index) {
+  setState(() {
+    _bankControllers[index]['bankName']?.dispose();
+    _bankControllers[index]['bankAccount']?.dispose();
+    _bankControllers[index]['bankHolder']?.dispose();
+
+    _bankControllers.removeAt(index);
+  });
+}
 
   @override
   void initState() {
@@ -36,9 +54,17 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     _addressController.text = profile.businessAddress;
     _phoneController.text = profile.businessPhone;
     _emailController.text = profile.businessEmail;
-    _bankNameController.text = profile.bankName;
-    _bankAccountController.text = profile.bankAccount;
-    _bankHolderController.text = profile.bankHolder;
+    if (profile.bankAccounts.isNotEmpty) {
+  _bankControllers = profile.bankAccounts.map((bank) {
+    return {
+      'bankName': TextEditingController(text: bank.bankName),
+      'bankAccount': TextEditingController(text: bank.bankAccount),
+      'bankHolder': TextEditingController(text: bank.bankHolder),
+    };
+  }).toList();
+} else {
+  _addBankAccount();
+}
     _notesController.text = profile.notes;
     _logoPath = profile.logoPath;
   }
@@ -49,9 +75,11 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     _addressController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _bankNameController.dispose();
-    _bankAccountController.dispose();
-    _bankHolderController.dispose();
+    for (final bank in _bankControllers) {
+  bank['bankName']?.dispose();
+  bank['bankAccount']?.dispose();
+  bank['bankHolder']?.dispose();
+}
     _notesController.dispose();
     super.dispose();
   }
@@ -67,9 +95,13 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
         businessPhone: _phoneController.text.trim(),
         businessEmail: _emailController.text.trim(),
         logoPath: _logoPath,
-        bankName: _bankNameController.text.trim(),
-        bankAccount: _bankAccountController.text.trim(),
-        bankHolder: _bankHolderController.text.trim(),
+        bankAccounts: _bankControllers.map((bank) {
+  return BankAccount(
+    bankName: bank['bankName']!.text.trim(),
+    bankAccount: bank['bankAccount']!.text.trim(),
+    bankHolder: bank['bankHolder']!.text.trim(),
+  );
+}).toList(),
         notes: _notesController.text.trim(),
       );
 
@@ -179,41 +211,124 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
               const SizedBox(height: 24),
 
               // Bank Info
-              Text(
-                'Informasi Bank',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFFE94560) : const Color(0xFF1A1A2E),
+Text(
+  'Informasi Bank',
+  style: TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    color: isDark
+        ? const Color(0xFFE94560)
+        : const Color(0xFF1A1A2E),
+  ),
+),
+
+const SizedBox(height: 12),
+
+ListView.builder(
+  shrinkWrap: true,
+  physics: const NeverScrollableScrollPhysics(),
+  itemCount: _bankControllers.length,
+  itemBuilder: (context, index) {
+    final bank = _bankControllers[index];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF16162A)
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF2A2A4A)
+              : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Bank ${index + 1}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
 
-              TextFormField(
-                controller: _bankNameController,
-                decoration: InputDecoration(labelText: loc.get('bank_name'), prefixIcon: const Icon(Icons.account_balance_outlined)),
-              ),
-              const SizedBox(height: 12),
+              if (_bankControllers.length > 1)
+                IconButton(
+                  onPressed: () => _removeBankAccount(index),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.red,
+                  ),
+                ),
+            ],
+          ),
 
-              TextFormField(
-                controller: _bankAccountController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(labelText: loc.get('bank_account'), prefixIcon: const Icon(Icons.credit_card)),
-              ),
-              const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-              TextFormField(
-                controller: _bankHolderController,
-                decoration: InputDecoration(labelText: loc.get('bank_holder'), prefixIcon: const Icon(Icons.person_outline)),
-              ),
-              const SizedBox(height: 12),
+          TextFormField(
+            controller: bank['bankName'],
+            decoration: InputDecoration(
+              labelText: loc.get('bank_name'),
+              prefixIcon:
+                  const Icon(Icons.account_balance_outlined),
+            ),
+          ),
 
-              TextFormField(
-                controller: _notesController,
-                decoration: InputDecoration(labelText: loc.get('profile_notes'), prefixIcon: const Icon(Icons.notes), alignLabelWithHint: true),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
+          const SizedBox(height: 12),
+
+          TextFormField(
+            controller: bank['bankAccount'],
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: loc.get('bank_account'),
+              prefixIcon: const Icon(Icons.credit_card),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          TextFormField(
+            controller: bank['bankHolder'],
+            decoration: InputDecoration(
+              labelText: loc.get('bank_holder'),
+              prefixIcon: const Icon(Icons.person_outline),
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+),
+
+SizedBox(
+  width: double.infinity,
+  child: OutlinedButton.icon(
+    onPressed: _addBankAccount,
+    icon: const Icon(Icons.add),
+    label: const Text('Tambah Bank'),
+  ),
+),
+
+const SizedBox(height: 12),
+
+TextFormField(
+  controller: _notesController,
+  decoration: InputDecoration(
+    labelText: loc.get('profile_notes'),
+    prefixIcon: const Icon(Icons.notes),
+    alignLabelWithHint: true,
+  ),
+  maxLines: 3,
+),
+
+const SizedBox(height: 24),
 
               SizedBox(
                 width: double.infinity,

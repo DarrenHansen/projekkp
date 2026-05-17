@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../database/db_helper.dart';
 import '../models/business_profile.dart';
+import '../models/bank_account.dart';
 
 /// Business Profile Provider
 class BusinessProfileProvider extends ChangeNotifier {

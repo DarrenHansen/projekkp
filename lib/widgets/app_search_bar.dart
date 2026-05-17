@@ -3,13 +3,15 @@ import '../utils/app_localizations.dart';
 
 /// Search Bar Widget
 class AppSearchBar extends StatelessWidget {
+  final FocusNode? focusNode;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final VoidCallback onClose;
   final bool showClose;
   final String? hintText;
+  
 
-  const AppSearchBar({super.key, required this.controller, required this.onChanged, required this.onClose, this.showClose = true, this.hintText});
+  const AppSearchBar({super.key, required this.controller, required this.onChanged, required this.onClose, this.showClose = true, this.hintText, this.focusNode});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,11 @@ class AppSearchBar extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         onChanged: onChanged,
+        onTapOutside: (_) {
+  FocusScope.of(context).unfocus();
+},
         style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1A1A2E), fontSize: 14),
         decoration: InputDecoration(
           hintText: hintText ?? loc.get('search_invoice'),

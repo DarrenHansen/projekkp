@@ -142,36 +142,37 @@ class Invoice {
 
   /// CopyWith untuk update parsial
   Invoice copyWith({
-    int? id,
-    String? invoiceNumber,
-    String? customerName,
-    String? customerAddress,
-    String? customerEmail,
-    String? customerPhone,
-    String? date,
-    String? dueDate,
-    double? total,
-    double? tax,
-    double? discount,
-    String? notes,
-    InvoiceStatus? status,
-    List<Item>? items,
-  }) {
-    return Invoice(
-      id: id ?? this.id,
-      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
-      customerName: customerName ?? this.customerName,
-      customerAddress: customerAddress ?? this.customerAddress,
-      customerEmail: customerEmail ?? this.customerEmail,
-      customerPhone: customerPhone ?? this.customerPhone,
-      date: date ?? this.date,
-      dueDate: dueDate ?? this.dueDate,
-      total: total ?? this.total,
-      tax: tax ?? this.tax,
-      discount: discount ?? this.discount,
-      notes: notes ?? this.notes,
-      status: status ?? this.status,
-      items: items ?? this.items,
-    );
-  }
+  int? id,
+  String? invoiceNumber,
+  String? customerName,
+  String? customerAddress,
+  String? customerEmail,
+  String? customerPhone,
+  String? date,
+  String? dueDate,
+  double? total,
+  double? tax,
+  double? discount,
+  String? notes,
+  InvoiceStatus? status,
+  List<Item>? items,
+}) {
+  return Invoice(
+    id: id ?? this.id,
+    invoiceNumber: invoiceNumber ?? this.invoiceNumber,
+    customerName: customerName ?? this.customerName,
+    customerAddress: customerAddress ?? this.customerAddress,
+    customerEmail: customerEmail ?? this.customerEmail,
+    customerPhone: customerPhone ?? this.customerPhone,
+    date: date ?? this.date,
+    dueDate: dueDate ?? this.dueDate,
+    tax: tax ?? this.tax,
+    discount: discount ?? this.discount,
+    notes: notes ?? this.notes,
+    status: status ?? this.status,
+    items: items ?? this.items,
+    total: total ?? this.total,
+    
+  );
+}
 }
