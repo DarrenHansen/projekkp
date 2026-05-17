@@ -29,6 +29,7 @@ class InvoiceDetailScreen extends StatefulWidget {
 class _InvoiceDetailScreenState extends State<InvoiceDetailScreen> {
   List<Item> _items = [];
   bool _isLoading = true;
+  bool _isGeneratingPdf = false;
   late Invoice invoice;
 
  @override
@@ -52,7 +53,38 @@ void initState() {
     setState(() => _isLoading = true);
     await _loadItems();
   }
+Future<void> _generatePdf() async {
+  if (_isGeneratingPdf) return;
 
+  setState(() {
+    _isGeneratingPdf = true;
+  });
+
+  try {
+    final profile =
+        context.read<BusinessProfileProvider>().profile;
+
+    await PdfHelper.generateAndPreviewInvoice(
+      invoice: invoice,
+      items: _items,
+      businessProfile: profile,
+    );
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal generate PDF: $e'),
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isGeneratingPdf = false;
+      });
+    }
+  }
+}
 Future<void> _changeStatus(InvoiceStatus newStatus) async {
   await context
       .read<InvoiceProvider>()
@@ -207,10 +239,19 @@ Future<void> _navigateToEdit() async {
       appBar: AppBar(
         title: Text(loc.get('detail_invoice'), style: const TextStyle(fontWeight: FontWeight.w700)),
         actions: [
-          IconButton(icon: const Icon(Icons.picture_as_pdf_outlined), tooltip: loc.get('export_pdf'), onPressed: () {
-            final profile = context.read<BusinessProfileProvider>().profile;
-            PdfHelper.generateAndPreviewInvoice(invoice: invoice, items: _items, businessProfile: profile);
-          }),
+          IconButton(
+  tooltip: loc.get('export_pdf'),
+  onPressed: _isGeneratingPdf ? null : _generatePdf,
+  icon: _isGeneratingPdf
+      ? const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+          ),
+        )
+      : const Icon(Icons.picture_as_pdf_outlined),
+),
           IconButton(icon: const Icon(Icons.share_outlined), tooltip: loc.get('share'), onPressed: _showShareBottomSheet),
           IconButton(icon: const Icon(Icons.edit_outlined), tooltip: loc.get('edit'), onPressed: _navigateToEdit),
           IconButton(icon: Icon(Icons.delete_outline, color: Colors.red.shade400), tooltip: loc.get('delete'), onPressed: _deleteInvoice),

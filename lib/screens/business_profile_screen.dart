@@ -7,6 +7,8 @@ import '../models/bank_account.dart';
 import '../providers/business_profile_provider.dart';
 import '../models/business_profile.dart';
 import '../utils/app_localizations.dart';
+import 'package:image/image.dart' as img;
+import 'package:path_provider/path_provider.dart';
 
 /// Business Profile Screen - Kustomisasi info usaha untuk nota/invoice
 class BusinessProfileScreen extends StatefulWidget {
@@ -17,6 +19,41 @@ class BusinessProfileScreen extends StatefulWidget {
 }
 
 class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
+  Future<String> _compressLogo(
+  String imagePath,
+) async {
+
+  final bytes =
+      await File(imagePath).readAsBytes();
+
+  final image = img.decodeImage(bytes);
+
+  if (image == null) return imagePath;
+
+  // resize max 500px
+  final resized = img.copyResize(
+    image,
+    width: 500,
+  );
+
+  final dir =
+      await getApplicationDocumentsDirectory();
+
+  final compressedPath =
+      '${dir.path}/business_logo.jpg';
+
+  final compressedFile =
+      File(compressedPath);
+
+  await compressedFile.writeAsBytes(
+    img.encodeJpg(
+      resized,
+      quality: 75,
+    ),
+  );
+
+  return compressedPath;
+}
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
@@ -146,10 +183,25 @@ void _removeBankAccount(int index) {
                 child: GestureDetector(
                   onTap: () async {
                     final picker = ImagePicker();
-                    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-                    if (picked != null) {
-                      setState(() => _logoPath = picked.path);
-                    }
+                    final picked = await picker.pickImage(
+  source: ImageSource.gallery,
+
+  // compress
+  imageQuality: 40,
+
+  // resize
+  maxWidth: 800,
+  maxHeight: 800,
+);
+                   if (picked != null) {
+
+  final compressedPath =
+      await _compressLogo(picked.path);
+
+  setState(() {
+    _logoPath = compressedPath;
+  });
+}
                   },
                   child: Container(
                     width: 100, height: 100,

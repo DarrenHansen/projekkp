@@ -12,9 +12,11 @@ import 'providers/locale_provider.dart';
 import 'utils/app_localizations.dart';
 import 'utils/notification_helper.dart';
 import 'screens/welcome_screen.dart';
+import 'utils/pdf_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
 
   // Initialize notifications
   await NotificationHelper.initialize();

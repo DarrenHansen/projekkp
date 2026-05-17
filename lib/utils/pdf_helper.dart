@@ -12,8 +12,61 @@ import '../models/business_profile.dart';
 import 'helpers.dart';
 import '../models/bank_account.dart';
 
+
+
 /// PDF Helper - Generate invoice PDF profesional
 class PdfHelper {
+static pw.Font? _regularFont;
+static pw.Font? _boldFont;
+static pw.Font? _italicFont;
+static pw.MemoryImage? _cachedLogo;
+static String? _cachedLogoPath;
+static Future<pw.MemoryImage?> _loadLogo(
+  String path,
+) async {
+
+  if (path.isEmpty) return null;
+
+  // gunakan cache jika path sama
+  if (_cachedLogo != null &&
+      _cachedLogoPath == path) {
+    return _cachedLogo;
+  }
+
+  final logoFile = File(path);
+
+  if (!await logoFile.exists()) {
+    return null;
+  }
+
+  final imageBytes =
+      await logoFile.readAsBytes();
+
+  _cachedLogo = pw.MemoryImage(imageBytes);
+
+  _cachedLogoPath = path;
+
+  return _cachedLogo;
+}
+static Future<void> _initFonts() async {
+  if (_fontInitialized) return;
+
+  _regularFont =
+      await PdfGoogleFonts.nunitoRegular();
+
+  _boldFont =
+      await PdfGoogleFonts.nunitoBold();
+
+  _italicFont =
+      await PdfGoogleFonts.nunitoItalic();
+
+  _fontInitialized = true;
+}
+static Future<void> preload() async {
+  await _initFonts();
+}
+
+static bool _fontInitialized = false;
   static Future<void> generateAndPreviewInvoice({
     required Invoice invoice,
     required List<Item> items,
@@ -42,27 +95,25 @@ class PdfHelper {
     List<Item> items,
     BusinessProfile? businessProfile,
   ) async {
-    final pdf = pw.Document(
-      theme: pw.ThemeData.withFont(
-        base: await PdfGoogleFonts.nunitoRegular(),
-        bold: await PdfGoogleFonts.nunitoBold(),
-        italic: await PdfGoogleFonts.nunitoItalic(),
-      ),
-    );
+    await _initFonts();
+    
+
+final pdf = pw.Document(
+  theme: pw.ThemeData.withFont(
+    base: _regularFont!,
+    bold: _boldFont!,
+    italic: _italicFont!,
+  ),
+);
 
 pw.MemoryImage? logoImage;
 
 if (businessProfile != null &&
     businessProfile.logoPath.isNotEmpty) {
 
-  final logoFile = File(businessProfile.logoPath);
-
-  if (await logoFile.exists()) {
-
-    final imageBytes = await logoFile.readAsBytes();
-
-    logoImage = pw.MemoryImage(imageBytes);
-  }
+  logoImage = await _loadLogo(
+    businessProfile.logoPath,
+  );
 }
 
     pdf.addPage(
