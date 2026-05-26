@@ -15,7 +15,7 @@ class AppLocalizations {
 
   static const Map<String, Map<String, String>> _localizedValues = {
     'en': {
-      'app_title': 'Invoice App',
+      'app_title': 'Fasnota',
       'welcome_subtitle': 'Manage invoices easily,\nfast, and professional.',
       'get_started': 'GET STARTED',
       'invoices': 'Invoices',
@@ -135,7 +135,7 @@ class AppLocalizations {
       'search_products': 'Search products...',
       'search_clients': 'Search clients...',
       'thank_you': 'Thank you for your trust.',
-      'auto_generated': 'Invoice App - Auto generated',
+      'auto_generated': 'Fasnota - Auto generated',
       'pdf_export': 'Export PDF',
       'pdf_desc': 'Invoice automatically in professional PDF format',
       'share_feature': 'Share Invoice',
@@ -148,7 +148,7 @@ class AppLocalizations {
       'version': 'App Version',
     },
     'id': {
-      'app_title': 'Invoice App',
+      'app_title': 'Fasnota',
       'welcome_subtitle': 'Kelola invoice dengan mudah,\ncepat, dan profesional.',
       'get_started': 'MULAI',
       'invoices': 'Invoice',
@@ -268,7 +268,7 @@ class AppLocalizations {
       'search_products': 'Cari produk...',
       'search_clients': 'Cari klien...',
       'thank_you': 'Terima kasih atas kepercayaan Anda.',
-      'auto_generated': 'Invoice App - Dibuat secara otomatis',
+      'auto_generated': 'Fasnota - Dibuat secara otomatis',
       'pdf_export': 'Export PDF',
       'pdf_desc': 'Invoice otomatis dalam format PDF profesional',
       'share_feature': 'Share Invoice',
